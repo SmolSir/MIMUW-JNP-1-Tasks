@@ -14,6 +14,7 @@ class TriFuzzyNum;
 class TriFuzzyNumSet;
 using TFN = TriFuzzyNum;
 using TFNS = TriFuzzyNumSet;
+using Triple = tuple<real_t, real_t, real_t>;
 
 class TriFuzzyNum {
 
@@ -24,7 +25,7 @@ private:
 
     constexpr void sort_params();
 
-    constexpr TFN rank() const;
+    constexpr Triple rank() const;
 
     static constexpr int compare_params(real_t param1, real_t param2);
 
@@ -34,10 +35,12 @@ public:
 
     constexpr TriFuzzyNum(real_t l, real_t m, real_t u); // constructor
     constexpr TriFuzzyNum(TFN& triFuzzyNum) = default; // copy constructor
-
-    consteval real_t lower_value() const;
-    consteval real_t modal_value() const;
-    consteval real_t upper_value() const;
+/*
+ * should be consteval, but compiler does not support it
+ */
+    constexpr real_t lower_value() const;
+    constexpr real_t modal_value() const;
+    constexpr real_t upper_value() const;
 
     friend ostream& operator<< (ostream& os, const TriFuzzyNum& tfn);
 
@@ -52,7 +55,7 @@ public:
     constexpr TFN operator- (const TFN& other) const;
     constexpr TFN operator* (const TFN& other) const;
 
-    constexpr int operator<=> (const TFN& other) const;
+    constexpr auto operator<=> (const TFN& other) const;
 
     constexpr bool operator<  (const TFN& other) const;
     constexpr bool operator<= (const TFN& other) const;
@@ -88,12 +91,12 @@ constexpr void TFN::sort_params() {
     if (l > m) swap(l, m);
 }
 
-constexpr TFN TFN::rank() const {
+constexpr Triple TFN::rank() const {
     real_t z = (u - l) + sqrt(1 + (u - m) * (u - m)) + sqrt(1 + (m - l) * (m - l));
     real_t y = (u - l) / z;
     real_t x = ((u - l) * m + sqrt(1 + (u - m) * (u - m)) * l + sqrt(1 + (m - l) * (m - l)) * u) / z;
 
-    return TFN{x - y / 2, 1 - y, m};
+    return Triple{x - y / 2, 1 - y, m};
 }
 
 constexpr int TFN::compare_params(const real_t param1, const real_t param2) {
@@ -101,14 +104,16 @@ constexpr int TFN::compare_params(const real_t param1, const real_t param2) {
 }
 
 constexpr TFN::TriFuzzyNum(const real_t l, const real_t m, const real_t u) :
-    l(l), m(m), u(u)
-    {
+        l(l), m(m), u(u)
+{
     sort_params();
 }
-
-consteval real_t TFN::lower_value() const { return l; }
-consteval real_t TFN::modal_value() const { return m; }
-consteval real_t TFN::upper_value() const { return u; }
+/*
+ * should be consteval, but the compiler does not support it
+ */
+constexpr real_t TFN::lower_value() const { return l; }
+constexpr real_t TFN::modal_value() const { return m; }
+constexpr real_t TFN::upper_value() const { return u; }
 
 ostream& operator<< (ostream& os, const TFN& tfn) {
     os << "(" << tfn.l << ", " << tfn.m << ", " << tfn.u << ")";
@@ -163,12 +168,13 @@ constexpr TFN TFN::operator*(const TFN& other) const {
 }
 
 
-constexpr int TFN::operator<=>(const TFN &other) const {
-    TFN my_rank = rank();
-    TFN other_rank = other.rank();
-    int l_compare = compare_params(my_rank.l, other_rank.l);
-    int m_compare = compare_params(my_rank.m, other_rank.m);
-    int u_compare = compare_params(my_rank.u, other_rank.u);
+constexpr auto TFN::operator<=>(const TFN &other) const {
+    Triple my_rank = rank();
+    Triple other_rank = other.rank();
+
+    int l_compare = compare_params(get<0>(my_rank), get<0>(other_rank));
+    int m_compare = compare_params(get<1>(my_rank), get<1>(other_rank));
+    int u_compare = compare_params(get<2>(my_rank), get<2>(other_rank));
 
     return  (l_compare == 0 ?
                 (m_compare == 0 ?
