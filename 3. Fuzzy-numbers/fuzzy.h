@@ -34,10 +34,10 @@ public:
     ~TriFuzzyNum() = default; // destructor
 
     constexpr TriFuzzyNum(real_t l, real_t m, real_t u); // constructor
-    constexpr TriFuzzyNum(TFN& triFuzzyNum) = default; // copy constructor
-/*
- * should be consteval, but compiler does not support it
- */
+    constexpr TriFuzzyNum(const TFN& triFuzzyNum) = default; // copy constructor
+    /*
+     * should be consteval, but compiler does not support it
+     */
     constexpr real_t lower_value() const;
     constexpr real_t modal_value() const;
     constexpr real_t upper_value() const;
@@ -61,25 +61,31 @@ public:
     constexpr bool operator<= (const TFN& other) const;
     constexpr bool operator>= (const TFN& other) const;
     constexpr bool operator>  (const TFN& other) const;
+
+
 };
 
-class TriFuzzyNumSet {
+class TriFuzzyNumSet : public multiset<TFN> {
     /*
      * only declarations of functions go here -
      * their definitions will be in the commented space further down.
      * use TFN and TFNS in every possible place to make the code clean :)
      */
 private:
-    /*
-     * private members
-     */
 
 public:
-    /*
-     * public members, this time we need a move constructor
-     */
+    TriFuzzyNumSet() = delete; // default constructor
+    ~TriFuzzyNumSet() = default; // delete constructor
+
+    TriFuzzyNumSet(const TFNS& fuzzyNumSet) = default; // copy constructor
+    TriFuzzyNumSet(TFNS&& fuzzyNumSet) = default; // move constructor
+    TriFuzzyNumSet(initializer_list<TFN> il); // initializer_list constructor (STFU)
 
 };
+
+TFNS::TriFuzzyNumSet(initializer_list<TFN> il) {
+    this->insert(il);
+}
 
 // should be consteval, neither g++-11.1.0 nor earlier versions do allow this
 constexpr TFN crisp_number(real_t value);
@@ -177,10 +183,10 @@ constexpr auto TFN::operator<=>(const TFN &other) const {
     int u_compare = compare_params(get<2>(my_rank), get<2>(other_rank));
 
     return  (l_compare == 0 ?
-                (m_compare == 0 ?
-                    (u_compare == 0 ? 0 : u_compare)
-                : m_compare)
-            : l_compare);
+             (m_compare == 0 ?
+              (u_compare == 0 ? 0 : u_compare)
+                             : m_compare)
+                            : l_compare);
 }
 
 constexpr bool TFN::operator<(const TFN &other) const {
@@ -202,6 +208,7 @@ constexpr bool TFN::operator>(const TFN &other) const {
 /*
  * definitions of TFNS functions go here
  */
+
 
 constexpr TFN crisp_number(const real_t value) {
     return TFN{value, value, value};
