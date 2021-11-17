@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/Zad3_feat__Bartosz_Smolarczyk_.dir/main.cpp.o -o Zad3_feat__Bartosz_Smolarczyk_ 

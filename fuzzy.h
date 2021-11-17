@@ -34,7 +34,7 @@ public:
     ~TriFuzzyNum() = default; // destructor
 
     constexpr TriFuzzyNum(real_t l, real_t m, real_t u); // constructor
-    constexpr TriFuzzyNum(TFN& triFuzzyNum) = default; // copy constructor
+    constexpr TriFuzzyNum(const TFN& triFuzzyNum) = default; // copy constructor
     /*
      * should be consteval, but compiler does not support it
      */
@@ -45,7 +45,6 @@ public:
     friend ostream& operator<< (ostream& os, const TriFuzzyNum& tfn);
 
     constexpr bool operator== (const TFN& other) const;
-    constexpr bool operator!= (const TFN& other) const;
 
     constexpr TFN& operator+= (const TFN& rhs);
     constexpr TFN& operator-= (const TFN& rhs);
@@ -56,31 +55,19 @@ public:
     constexpr TFN operator* (const TFN& other) const;
 
     constexpr auto operator<=> (const TFN& other) const;
-
-    constexpr bool operator<  (const TFN& other) const;
-    constexpr bool operator<= (const TFN& other) const;
-    constexpr bool operator>= (const TFN& other) const;
-    constexpr bool operator>  (const TFN& other) const;
 };
 
-class TriFuzzyNumSet : public multiset<TriFuzzyNum> {
-    /*
-     * only declarations of functions go here -
-     * their definitions will be in the commented space further down.
-     * use TFN and TFNS in every possible place to make the code clean :)
-     */
-private:
-    /*
-     * private members
-     */
 
+class TriFuzzyNumSet : public multiset<TFN> {
+    using multiset<TFN>::multiset;
 public:
-    //void construct_at(TriFuzzyNum*&, const TriFuzzyNum&) = default;
-    void remove (const TFN& val);
-    /*
-     * public members, this time we need a move constructor
-     */
+    TriFuzzyNumSet() = default; // default, 0 arg constructor
+    TriFuzzyNumSet (const TFNS& x) = default; // copy constructor
+    TriFuzzyNumSet (TFNS&& x) = default; // move constructor
+    ~TriFuzzyNumSet() = default; // destructor
 
+    void remove (const TFN& val);
+    TFN arithmetic_mean();
 };
 
 // should be consteval, neither g++-11.1.0 nor earlier versions do allow this
@@ -124,10 +111,6 @@ ostream& operator<< (ostream& os, const TFN& tfn) {
 
 constexpr bool TFN::operator==(const TFN& other) const {
     return (l == other.l && m == other.m && u == other.u);
-}
-
-constexpr bool TFN::operator!=(const TFN& other) const {
-    return !(*this == other);
 }
 
 constexpr TFN& TFN::operator+=(const TFN& rhs) {
@@ -185,30 +168,24 @@ constexpr auto TFN::operator<=>(const TFN &other) const {
     : l_compare);
 }
 
-constexpr bool TFN::operator<(const TFN &other) const {
-    return (*this <=> other) < 0;
-}
-
-constexpr bool TFN::operator<=(const TFN &other) const {
-    return (*this <=> other) <= 0;
-}
-
-constexpr bool TFN::operator>=(const TFN &other) const {
-    return (*this <=> other) >= 0;
-}
-
-constexpr bool TFN::operator>(const TFN &other) const {
-    return (*this <=> other) > 0;
-}
-
-//void construct_at(TriFuzzyNum*&, const TriFuzzyNum&) = default;
-
-/*
- * definitions of TFNS functions go here
- */
-
 void TFNS::remove(const TFN& val) {
     this->erase(val);
+}
+
+TFN TFNS::arithmetic_mean(){
+    if (this->empty()) throw length_error("TriFuzzyNumSet::arithmetic_mean - the set is empty.");
+    real_t l_out = 0, m_out = 0, u_out = 0;
+    int n = 0;
+    for (multiset<TFN>::iterator it = this->begin(); it != this->end(); ++it){
+        l_out += it->lower_value();
+        m_out += it->modal_value();
+        u_out += it->upper_value();
+        n++;
+    }
+    l_out /= n;
+    m_out /= n;
+    u_out /= n;
+    return TriFuzzyNum(l_out, m_out, u_out);
 }
 
 constexpr TFN crisp_number(const real_t value) {
