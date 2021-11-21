@@ -12,6 +12,7 @@ typedef double real_t;
 
 class TriFuzzyNum;
 class TriFuzzyNumSet;
+
 using TFN = TriFuzzyNum;
 using TFNS = TriFuzzyNumSet;
 using Triple = tuple<real_t, real_t, real_t>;
@@ -35,9 +36,7 @@ public:
 
     constexpr TriFuzzyNum(real_t l, real_t m, real_t u); // constructor
     constexpr TriFuzzyNum(const TFN& triFuzzyNum) = default; // copy constructor
-    /*
-     * should be consteval, but compiler does not support it
-     */
+
     constexpr real_t lower_value() const;
     constexpr real_t modal_value() const;
     constexpr real_t upper_value() const;
@@ -70,10 +69,6 @@ public:
     TFN arithmetic_mean() const;
 };
 
-// should be consteval, neither g++-11.1.0 nor earlier versions do allow this
-constexpr TFN crisp_number(real_t value);
-const TFN crisp_zero = crisp_number(0.0);
-
 constexpr void TFN::sort_params() {
     if (l > m) swap(l, m);
     if (m > u) swap(m, u);
@@ -97,9 +92,7 @@ constexpr TFN::TriFuzzyNum(const real_t l, const real_t m, const real_t u) :
 {
     sort_params();
 }
-/*
- * should be consteval, but the compiler does not support it
- */
+
 constexpr real_t TFN::lower_value() const { return l; }
 constexpr real_t TFN::modal_value() const { return m; }
 constexpr real_t TFN::upper_value() const { return u; }
@@ -186,8 +179,11 @@ TFN TFNS::arithmetic_mean() const {
     return TriFuzzyNum{l_out, m_out, u_out};
 }
 
-constexpr TFN crisp_number(const real_t value) {
+consteval TFN crisp_number(const real_t value) {
     return TFN{value, value, value};
 }
+
+inline constinit const TFN crisp_zero = crisp_number(0.0);
+
 
 #endif // __FUZZY_H__
