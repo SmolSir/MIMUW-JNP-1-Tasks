@@ -5,10 +5,58 @@
 #ifndef TREASURE_H
 #define TREASURE_H
 
-class Treasure;
+#include <type_traits>
 
-/*
- * SOURCE CODE
- */
+using namespace std;
+
+template <class T, bool trap>
+class Treasure {
+private:
+    T loot;
+public:
+    const bool IsTrapped = trap;
+
+    Treasure() = delete;
+    ~Treasure() = default;
+
+    constexpr explicit Treasure(T value) : loot(value) {
+        static_assert(is_integral<T>::value, "Integral value required.");
+    };
+
+    constexpr T evaluate() const;
+    constexpr T getLoot() const;
+};
+
+template <class T>
+class SafeTreasure : public Treasure<T, false> {
+public:
+    SafeTreasure() = delete;
+    ~SafeTreasure() = default;
+
+    constexpr explicit SafeTreasure(T value) : Treasure<T, false>(value) {}
+};
+
+template <class T>
+class TrappedTreasure : public Treasure<T, true> {
+public:
+    TrappedTreasure() = delete;
+    ~TrappedTreasure() = default;
+
+    constexpr explicit TrappedTreasure(T value) : Treasure<T, true>(value) {}
+};
+
+
+template <class T, bool trap>
+constexpr T Treasure<T, trap>::evaluate() const  {
+    return loot;
+}
+
+template <class T, bool trap>
+constexpr T Treasure<T, trap>::getLoot() const {
+    T temp = loot;
+    loot = 0;
+    return temp;
+}
+
 
 #endif // TREASURE_H
