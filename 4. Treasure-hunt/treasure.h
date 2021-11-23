@@ -14,7 +14,7 @@ class Treasure {
 private:
     T loot;
 public:
-    const bool IsTrapped = trap;
+    const bool isTrapped = trap;
 
     Treasure() = delete;
     ~Treasure() = default;
@@ -24,7 +24,7 @@ public:
     };
 
     constexpr T evaluate() const;
-    constexpr T getLoot() const;
+    constexpr T getLoot();
 };
 
 template <class T>
@@ -52,7 +52,7 @@ constexpr T Treasure<T, trap>::evaluate() const  {
 }
 
 template <class T, bool trap>
-constexpr T Treasure<T, trap>::getLoot() const {
+constexpr T Treasure<T, trap>::getLoot() {
     T temp = loot;
     loot = 0;
     return temp;

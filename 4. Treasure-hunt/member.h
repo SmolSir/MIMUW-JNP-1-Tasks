@@ -32,7 +32,7 @@ private:
 public:
     static const bool isArmed = armed;
 
-    Adventurer();
+    constexpr Adventurer();
     ~Adventurer() = default;
 
     constexpr explicit Adventurer(strength_t);
@@ -72,7 +72,7 @@ public:
  */
 
 template <class T, bool armed>
-Adventurer<T, armed>::Adventurer() : strength(0) {
+constexpr Adventurer<T, armed>::Adventurer() : strength(0) {
     static_assert(is_integral<T>::value, "Integral value required");
     static_assert(!armed, "Cannot create armed Adventurer with this constructor");
 }
