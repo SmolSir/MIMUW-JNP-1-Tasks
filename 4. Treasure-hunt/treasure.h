@@ -14,7 +14,7 @@ class Treasure {
 private:
     T loot;
 public:
-    const bool isTrapped = trap;
+    static const bool isTrapped = trap;
 
     Treasure() = delete;
     ~Treasure() = default;
