@@ -1,141 +1,104 @@
-//
-// Created by Bartosz Smolarczyk & Andrzej Sijka on 22.11.2021.
-//
-
-#ifndef MEMBER_H
-#define MEMBER_H
+#ifndef JNP_ZADANIE4_MEMBER_H
+#define JNP_ZADANIE4_MEMBER_H
 
 #include "treasure.h"
-#include <typeinfo>
+#include <cstdint>
+#include <concepts>
+#include <cstddef>
+#include <type_traits>
 #include <array>
 
-using strength_t = unsigned int;
+using completed_expedition_t = size_t;
 
-
-static inline const int MAX_EXPEDITIONS = 25;
-static inline consteval auto Fibonacci_array() {
-    array<strength_t, MAX_EXPEDITIONS> arr{0};
+constexpr const int MAX_EXPEDITIONS = 25;
+/*
+constexpr auto Fibonacci_array() {
+    std::array<uint32_t, MAX_EXPEDITIONS> arr{0};
     arr[1] = 1;
     for (int i = 2; i < MAX_EXPEDITIONS; i++) {
         arr[i] = arr[i - 1] + arr[i - 2];
     }
     return arr;
 }
-static inline constexpr auto Fibonacci = Fibonacci_array();
+constexpr auto Fibonacci = Fibonacci_array();
+*/
+constexpr uint32_t Fibonacci[MAX_EXPEDITIONS] =
+        {0, 1, 1, 2, 3, 5, 8, 13, 21,
+         34, 55, 89, 144, 233, 377, 610, 987,
+         1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368};
 
-
-template <class T, bool armed>
+template<Integral ValueType, bool armed>
 class Adventurer {
 private:
-    T total_loot = 0;
-    strength_t strength;
+    ValueType collected_loot = 0;
 public:
-    static const bool isArmed = armed;
 
-    constexpr Adventurer();
-    ~Adventurer() = default;
+    using strength_t = uint32_t;
+    strength_t strength;
 
-    constexpr explicit Adventurer(strength_t);
+    constexpr Adventurer() requires(armed == false) {strength = 0;};
 
-    constexpr strength_t getStrength() const;
+    constexpr Adventurer(ValueType value) requires(armed == true) {strength = value;};
 
-    template <class R, bool trap>
-    constexpr void loot(Treasure<R, trap>&&);
+    constexpr static bool isArmed = armed;
 
-    constexpr T pay();
+    constexpr strength_t getStrength() const requires(armed == true) {return strength;};
+
+    template<bool IsTrapped>
+    constexpr void loot(Treasure<ValueType, IsTrapped> && treasure) {
+        if (IsTrapped) {
+            if (isArmed && strength > 0) {
+                strength /= 2;
+                int new_loot = treasure.getLoot();
+                collected_loot += new_loot;
+            }
+        } else {
+            int new_loot = treasure.getLoot();
+            collected_loot += new_loot;
+        }
+    };
+
+    constexpr ValueType pay() {
+        ValueType res = collected_loot;
+        collected_loot = 0;
+        return res;
+    };
 };
 
-template <class T>
-class Explorer : public Adventurer<T, false> {};
+template<class ValueType>
+using Explorer = Adventurer<ValueType, false>;
 
-template <class T, size_t completed_expeditions>
+template<Integral ValueType, completed_expedition_t completed_expeditions>
 class Veteran {
 private:
-    T total_loot = 0;
-    strength_t strength;
+    completed_expedition_t total_expedition;
+    ValueType collected_loot = 0;
 public:
-    static const bool isArmed = true;
 
-    constexpr Veteran();
-    ~Veteran() = default;
+    using strength_t = uint32_t;
+    strength_t strength;
 
-    constexpr strength_t getStrength() const;
+    constexpr Veteran() requires(completed_expeditions < 25) {
+        collected_loot = 0;
+        strength = Fibonacci[completed_expeditions];
+        total_expedition = completed_expeditions;
+    };
 
-    template <class R, bool trap>
-    constexpr void loot(Treasure<R, trap>&&);
+    constexpr static bool isArmed = true;
 
-    constexpr T pay();
+    template<bool IsTrapped>
+    constexpr void loot(Treasure<ValueType, IsTrapped> && treasure) {
+        int new_loot = treasure.getLoot();
+        collected_loot += new_loot;
+    };
+
+    constexpr ValueType pay() {
+        ValueType res = collected_loot;
+        collected_loot = 0;
+        return res;
+    };
+
+    constexpr strength_t getStrength() const {return strength;};
 };
 
-/*
- * ADVENTURER CLASS IMPLEMENTATION
- */
-
-template <class T, bool armed>
-constexpr Adventurer<T, armed>::Adventurer() : strength(0) {
-    static_assert(is_integral<T>::value, "Integral value required");
-    static_assert(!armed, "Cannot create armed Adventurer with this constructor");
-}
-
-template <class T, bool armed>
-constexpr Adventurer<T, armed>::Adventurer(strength_t strength) : strength(strength) {
-    static_assert(is_integral<T>::value, "Integral value required");
-    static_assert(armed, "Cannot create unarmed Adventurer with this constructor");
-}
-
-template <class T, bool armed>
-constexpr strength_t Adventurer<T, armed>::getStrength() const {
-    static_assert(armed, "Strength not defined for unarmed Adventurer");
-    return strength;
-}
-
-template <class T, bool armed>
-template <class R, bool trap>
-constexpr void Adventurer<T, armed>::loot(Treasure<R, trap>&& treasure) {
-    static_assert(typeid(T) == typeid(R), "Incompatible types of treasures");
-    if (trap) {
-        total_loot += strength ? treasure.getLoot() : 0;
-        strength /= 2;
-    } else {
-        total_loot += treasure.getLoot();
-    }
-}
-
-template <class T, bool armed>
-constexpr T Adventurer<T, armed>::pay() {
-    T temp = total_loot;
-    total_loot = 0;
-    return temp;
-}
-
-/*
- *  VETERAN CLASS IMPLEMENTATION
- */
-
-template <class T, size_t completed_expeditions>
-constexpr Veteran<T, completed_expeditions>::Veteran() {
-    static_assert(is_integral<T>::value, "Integral value required");
-    static_assert(completed_expeditions < 25, "Too many completed expeditions");
-    strength = Fibonacci[completed_expeditions];
-}
-
-template <class T, size_t completed_expeditions>
-constexpr strength_t Veteran<T, completed_expeditions>::getStrength() const {
-    return strength;
-}
-
-template <class T, size_t completed_expeditions>
-template <class R, bool trap>
-constexpr void Veteran<T, completed_expeditions>::loot(Treasure<R, trap>&& treasure) {
-    static_assert(typeid(T) == typeid(R), "Incompatible types of treasures");
-    total_loot += treasure.getLoot();
-}
-
-template <class T, size_t completed_expeditions>
-constexpr T Veteran<T, completed_expeditions>::pay() {
-    T temp = total_loot;
-    total_loot = 0;
-    return temp;
-}
-
-#endif // MEMBER_H
+#endif //JNP_ZADANIE4_MEMBER_H
