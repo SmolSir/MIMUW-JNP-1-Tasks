@@ -1,0 +1,69 @@
+=== Proponowane kryteria oceniania drugiego zadania ===
+
+== Cele dydaktyczne ==
+
+Studenci powinni:
+- poznać kolejne elementy o STL-a (insert, erase, iteratory, ...),
+- ugruntować w sobie konieczność weryfikacji poprawności danych wejściowych,
+- nauczyć się łączenia kodu C i C++,
+- dowiedzieć się, jak inicjuje się obiekty globalne i statyczne,
+- wiedzieć, dlaczego i jak należy ograniczać widoczność zmiennych
+  globalnych i funkcji pomocniczych modułu (jednostki translacji)
+  niebędących częścią interfejsu tego modułu;
+- dowiedzieć się, jak poprawnie korzystać z dyrektyw preprocesora.
+
+== Ocena automatyczna ==
+
+Za testy automatyczne jest do zdobycia 6 punktów, po jednym punkcie za przejście
+każdej z poniższych grup testów:
+- test 101 to test (maptel_test1.c) z treści zadania;
+- testy 201 i 202 to ogólne testy poprawności;
+- testy 301 i 302 sprawdzają poprawność przechowywania kopii numerów;
+- test 401 sprawdza zachowanie na bardzo długim cyklu;
+- testy 501 do 525 powinny zakończyć się na asercji z powodu niepoprawnego
+  argumentu;
+- test 601 to drugi test z treści zadania (maptel_test2.cc)
+  i jednocześnie test sprawdzający "static initialization order fiasco";
+  testy od 602 do 606 zawierają użycia, które mają się nie kompilować.
+
+== Ocena jakości kodu ==
+
+Zaczynamy od 4 punktów i odejmujemy po jednym punkcie za:
+- niezgodność zawartości repozytorium ze specyfikacją zadania;
+- brzydki styl (niepoprawne wstawianie spacji, wcięć, odstępów, brak komentarzy,
+  magiczne stałe itd.);
+- ostrzeżenia wypisywane przez kompilator (opcje -Wall -Wextra);
+- błędy w komunikatach diagnostycznych;
+- dłubanie własnych klas lub struktur zamiast użycia kontenerów STL-owych;
+- rozwlekłą lub nieelegancką strukturę programu, rozpatrywanie zbyt wielu
+  warunków brzegowych, powtarzanie kodu;
+- nieskuteczną obsługę (lub jej brak) problemu "static initialization
+  order fiasco" - o ile test automatyczny tego nie wykrył;
+- niepoprawne pliki nagłówkowe, czyli brak header guard
+  (#ifndef #define ... #endif) lub #ifdef __cplusplus);
+- wstawienie using do pliku nagłówkowego;
+- nieukrycie przed światem zewnętrznym zmiennych globalnych i funkcji
+  niebędących częścią interfejsu modułu;
+- uzależnienie fragmentów kodu źródłowego realizujące wyspecyfikowane operacje
+  na mapach od opcji -DNDEBUG;
+- wielokrotne wyszukiwanie w mapie wg tego samego klucza;
+- zły dobór typów, np. używanie int zamiast size_t itp.
+- potencjalne wycieki pamięci;
+- inne, niewymienione w tych kryteriach błędy w szczególności te niewykryte
+  przez testy automatyczne;
+- np. implementowanie wypisywania komunikatów diagnostycznych za pomocą funkcji,
+  których kompilator nie wyoptymalizuje.
+Przy czym ocena nie może być ujemna.
+
+Ponadto piętnujemy:
+- przekazywanie funkcjom dużych argumentów (np. typu string) przez
+  wartość, takie obiekty przekazujemy przez stałą referencję (jeszcze
+  bym za to nie odejmował punktów, bo to jest temat zadania 3).
+
+Jednym z rozwiązań problemu initialization order fiasco proponowanym
+w czytankach jest użycie pamięci dynamicznej, której się potem nie zwalnia
+(zakłada się, że system operacyjny odzyska tę pamięć po zakończeniu procesu).
+W tym zadaniu można zastosować takie rozwiązanie, w którym nie trzeba używać
+pamięci dynamicznej, ale ogólnie takie rozwiązanie też nie jest bez wad (patrz
+czytanki), więc można dopuścić rozwiązanie z niezwalnianą pamięcią dynamiczną
+globalnego słownika.
