@@ -1,0 +1,103 @@
+Biblioteka standardowa języka C++ udostępnia implementacje wielu struktur
+danych, takich jak pair, vector, string, unordered_map, queue itd., a także
+implementacje podstawowych algorytmów, np. sort. Jako pierwsze zadanie
+zaliczeniowe proponujemy przećwiczenie korzystania z tej biblioteki przez
+zaimplementowanie uproszczonego symulatora układów cyfrowych Nysa.
+
+Układ cyfrowy składa się z bramek logicznych. Uwzględniamy sześć typów bramek:
+NOT, XOR, AND, NAND, OR, NOR. Każda bramka ma jedno wyjście. Bramka NOT ma
+jedno wejście. Bramka XOR ma dwa wejścia. Każda z pozostałych bramek ma co
+najmniej dwa wejścia. Na wejściach i wyjściach bramek pojawiają się sygnały
+logiczne. Sygnał logiczny przyjmuje dwie wartości: 0 i 1. Wartość sygnału na
+wyjściu bramki oblicza się na podstawie sygnałów na jej wejściu zgodnie
+z powszechnie przyjętą konwencją wynikającą z nazw bramek.
+
+Program czyta opis układu ze standardowego wejścia. Każda linia zawiera opis
+jednej bramki, składający się z nazwy bramki i numerów sygnałów podłączonych do
+tej bramki, najpierw numer sygnału podłączony do wyjścia, a potem numery
+sygnałów podłączonych do wejść. Numer sygnału jest liczbą całkowitą z przedziału
+od 1 do 999999999. Poszczególne elementy linii są oddzielone białymi znakami,
+których może być dowolnie wiele i które mogą też występować na początku lub na
+końcu linii. Przykładowy opis układu:
+
+AND 5 4 3 2 1
+OR 1 2 3
+
+W trakcie czytania opisu układu program na bieżąco sprawdza, czy opis nie
+zawiera błędów składniowych oraz czy każdy sygnał jest podłączony do co najwyżej
+jednego wyjścia (czy wyjścia bramek nie są ze sobą zwarte). Informacje
+o wykrytych błędach program wypisuje na standardowe wyjście błędów. Przykładowo
+dla opisu układu:
+
+NIE 2 1
+AND 2 4 6
+OR  2 4 6
+
+program powinien wypisać (uwaga na spację po dwukropku i na zachowanie
+w komunikacie oryginalnej postaci błędnej linii):
+
+Error in line 1: NIE 2 1
+Error in line 3: signal 2 is assigned to multiple outputs.
+
+Jeśli program wykrył co najmniej jeden błąd, to kończy działanie po przeczytaniu
+całego opisu.
+
+Jeśli program wczytał cały opis układu i nie wykrył w nim żadnego błędu, to
+sprawdza, czy wczytany opis reprezentuje układ kombinacyjny (czy nie zawiera
+pętli w zależnościach sygnałów). Jeśli wczytany opis nie reprezentuje układu
+kombinacyjnego (jest to układ sekwencyjny), to program kończy działanie,
+wypisując komunikat na standardowe wyjście błędów. Przykładowo dla opisu układu:
+
+NAND 1 2 3
+NOT 2 1
+
+program powinien wypisać:
+
+Error: sequential logic analysis has not yet been implemented.
+
+Jeśli wczytany opis reprezentuje układ kombinacyjny, to program wypisuje na
+standardowe wyjście tablicę prawdy tego układu i kończy działanie. Załóżmy, że
+opis układu zawiera N sygnałów, z których M sygnałów jest sygnałami wejściowymi,
+czyli sygnałami podłączonymi tylko do wejść bramek. Tablica prawdy składa się
+z N kolumn i 2^M wierszy i zawiera wartości 0 i 1. Każda kolumna odpowiada
+sygnałowi. Sygnały w kolumnach rozważamy w kolejności rosnącej ich numerów.
+Każdy wiersz odpowiada jednej kombinacji sygnałów wejściowych. Te kombinacje
+rozważamy w takiej kolejności, że ich interpretacja jako liczb dwójkowych
+odpowiada kolejnym liczbom. Przykładowo dla opisu układu:
+
+AND 5 3 1
+XOR 7 5 9
+
+program powinien wypisać:
+
+00000
+00011
+01000
+01011
+10000
+10011
+11110
+11101
+
+Program będzie kompilowany na maszynie students poleceniem
+
+g++ -Wall -Wextra -O2 -std=c++20 nysa.cc -o nysa
+
+Oczekiwane rozwiązanie nie powinno zawierać definicji własnych struktur i klas,
+a przynajmniej takich, które zawierają dane. Zamiast tego należy intensywnie
+korzystać z kontenerów i algorytmów dostarczanych przez standardową bibliotekę
+języka C++. Obsługę wejścia i wyjścia należy zrealizować za pomocą strumieni.
+
+Rozwiązanie należy umieścić w pliku nysa.cc, który należy umieścić
+w repozytorium SVN w katalogu
+
+grupaN/zadanie1/ab123456+cd123456
+
+lub
+
+grupaN/zadanie1/ab123456+cd123456+ef123456
+
+gdzie N jest numerem grupy, a ab123456, cd123456, ef123456 są identyfikatorami
+członków zespołu umieszczającego to rozwiązanie. Katalog z rozwiązaniem nie
+powinien zawierać innych plików. Nie wolno umieszczać w repozytorium plików
+dużych, binarnych, tymczasowych (np. *.o) ani innych zbędnych.
