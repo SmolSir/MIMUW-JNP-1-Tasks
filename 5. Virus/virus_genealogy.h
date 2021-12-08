@@ -23,40 +23,47 @@ class TriedToRemoveStemVirusException : public std::exception {
     }
 };
 
-
-template<typename Virus>
-class Node {
-public:
-    Virus virus;
-    std::vector<std::shared_ptr<Node<Virus>>> children;
-    std::vector<typename Virus::id_type> parents;
-
-    Node(typename Virus::id_type const &virus_id) : virus(virus_id) {}
-
-    void add_parent(typename Virus::id_type const &parent_id) {
-        parents.push_back(parent_id);
-    }
-
-    void add_child(Node<Virus> *child_virus) {
-        std::shared_ptr<Node<Virus>> pointer_to_child(child_virus);
-        children.push_back(pointer_to_child);
-    }
-};
-
-
 template<typename Virus>
 class VirusGenealogy {
 private:
-    std::map<typename Virus::id_type, Node<Virus>> viral_map;
-    typename Virus::id_type stem_id;
+    class Node {
+    public:
+        Virus virus;
+        const Virus::id_type virus_id;
+        std::vector<std::shared_ptr<Node>> children;
+        std::vector<typename Virus::id_type> parents;
+
+        Node(Virus::id_type const &virus_id) : virus(virus_id), virus_id(virus_id) {}
+        ~Node() {
+          viral_map.erase(virus_id); // wyjątek?
+        }
+
+        void add_parent(Virus::id_type const &parent_id) {
+            parents.push_back(parent_id);
+        }
+
+        void add_child(Node *child_virus) {
+            std::shared_ptr<Node> pointer_to_child(child_virus);
+            children.push_back(pointer_to_child);
+        }
+    };
+
+    std::map<typename Virus::id_type, Node> viral_map;
+    Virus::id_type stem_id;
 
 public:
-
-    constexpr VirusGenealogy(typename Virus::id_type const &stem_id) : stem_id(stem_id) {};
-
-    constexpr typename Virus::id_type get_stem_id() const {
-        return stem_id;
+    //Wydaje mi się, że to nie może być constexpr (chyba sama mapa nie może, więc to tym bardziej)
+    VirusGenealogy(typename Virus::id_type const &stem_id) : stem_id(stem_id) {
+        viral_map.insert(Node(stem_id));    //wyjątek?
     };
+
+    //Jeśli konstruktor nie może, to chyba wgl nie ma sensu robić rzeczy constexpr
+    constexpr Virus::id_type get_stem_id() const {
+        return stem_id;                     //wyjątek?
+    };
+
+    //Dodałem chwilowo, by mój kompilator się nie pruł, do usunięcia.
+    using children_iterator = int;
 
     // TODO
     // trzeba samemu zdefiniować children_iterator
@@ -71,10 +78,12 @@ public:
             throw VirusNotFoundException();
         }
         return viral_map[id].parents; // tutaj można tak czy trzeba przez copy() ?
+        //To chyba i tak kopiuje zawartość. Trochę nie jestem jednak pewien czy nie może rzucać wyjątków w trakcie (ale to bym zostawił na potem)
     };
 
     bool exists(typename Virus::id_type const &id) const {
         return viral_map.contains(id);
+        //Czy może tutaj zostać rzucony wyjątek? (np jak operator porównania rzuci) <- to pytanie dotyczy wsm każdej funkcji xd
     };
 
     const Virus& operator[](typename Virus::id_type const &id) const {
@@ -92,7 +101,7 @@ public:
             throw VirusNotFoundException();
         }
 
-        viral_map[id] = Node<>(id);
+        viral_map[id] = Node(id);
         viral_map[id].add_parent(parent_id);
         viral_map[parent_id].add_child(&viral_map[id]);
     };
@@ -107,7 +116,7 @@ public:
             }
         }
 
-        viral_map[id] = Node<>(id);
+        viral_map[id] = Node(id);
         for (auto parent : parent_ids) {
             viral_map[id].add_parent(parent);
             viral_map[parent].add_child(&viral_map[id]);
