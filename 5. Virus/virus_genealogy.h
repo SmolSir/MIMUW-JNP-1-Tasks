@@ -53,7 +53,7 @@ public:
             parents.insert(parent_id);
         };
 
-        void add_child(Node *child_virus) {
+        void add_child(std::shared_ptr<Node>& child_virus) {
             std::shared_ptr<Node> pointer_to_child(child_virus);
             children.insert({child_virus->virus.get_id(), pointer_to_child});
         };
@@ -65,7 +65,7 @@ public:
         };
     };
 
-    std::map<typename Virus::id_type, Node*> viral_map;
+    std::map<typename Virus::id_type, std::shared_ptr<Node>> viral_map;
     std::shared_ptr<Node> stem_node;
 
 public:
@@ -114,8 +114,7 @@ public:
     //Wydaje mi się, że to nie może być constexpr (chyba sama mapa nie może, więc to tym bardziej)
     VirusGenealogy(Virus::id_type const &stem_id) {
         stem_node = std::make_shared<Node>(stem_id);
-        Node *stem_node_ptr = stem_node.get();
-        viral_map.insert({stem_id, stem_node_ptr});
+        viral_map.insert({stem_id, std::shared_ptr(stem_node)});
     };
 
     //Jeśli konstruktor nie może, to chyba wgl nie ma sensu robić rzeczy constexpr
@@ -164,9 +163,10 @@ public:
             throw VirusNotFoundException();
         }
 
-        Node *to_map = viral_map[parent_id]->create_and_add_child(id);
-        viral_map[id] = to_map;
-        viral_map[id]->add_parent(parent_id);
+        std::shared_ptr<Node> new_virus = make_shared<Node>(id);
+        viral_map[id] = new_virus;
+        viral_map[parent_id]->add_child(new_virus);
+        new_virus->add_parent(parent_id);
     };
 
     void create(typename Virus::id_type const &id, std::vector<typename Virus::id_type> const &parent_ids) {
@@ -179,9 +179,12 @@ public:
             }
         }
 
-        create(id, parent_ids[0]);
-        for (std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >::size_type i = 1; i < parent_ids.size(); i++) {
-            connect(id, parent_ids[i]);
+        std::shared_ptr<Node> new_virus = make_shared<Node>(id);
+        viral_map[id] = new_virus;
+
+        for (auto i = 0; i < parent_ids.size(); ++i) {
+            viral_map[parent_ids[i]]->add_child(new_virus);
+            new_virus->add_parent(parent_ids[i]);
         } 
     };
 
@@ -212,10 +215,10 @@ public:
         }
 
         try {
-            std::vector<typename std::map<typename Virus::id_type, Node *>::iterator> to_be_erased;
+            std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> to_be_erased;
             //Tę mapę można chyba zamienić na wektor (set jest posortowany), ale utrzymałem w jednej konwencji
-            std::multimap<Node *, typename std::set<typename Virus::id_type> :: iterator> erased_children;
-            std::map<Node *, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> erased_parents;
+            std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type> :: iterator> erased_children;
+            std::map<std::shared_ptr<Node>, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> erased_parents;
             add_erased(to_be_erased, erased_parents, erased_children, id);
 
             for (auto child : erased_children) {
@@ -225,7 +228,7 @@ public:
                 std::cout << "skuces\n";
             }
 
-            std::cout << "u rdzocicow usuwanie  size " << erased_parents.size() << std::endl;            
+            std::cout << "u rodzicow usuwanie  size " << erased_parents.size() << std::endl;            
             for (auto parent : erased_parents) {
                 std::cout << "U " << parent.first->virus.get_id() << std::endl;
                 std::cout << "dziecko " << parent.second->first << std::endl;
@@ -249,9 +252,9 @@ private: //Tutaj wrzucę jakieś pomocnicze funkcje, do przeniesienia potem
     // to_be_erased -> iteratory do usunięcia z viral_map
     // erased_children -> mapa, dla każdego ojca (klucz) zapisuje iteratory do miejsc w secie dzieci do usunięcia
     // erased_paretns -> iteratory do wierzchołka u ojców usuwanego
-    void add_erased(std::vector<typename std::map<typename Virus::id_type, Node *>::iterator>& to_be_erased,
-                    std::map<Node *, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator>& erased_parents,
-                    std::multimap<Node *, typename std::set<typename Virus::id_type>::iterator>& erased_children,
+    void add_erased(std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator>& to_be_erased,
+                    std::map<std::shared_ptr<Node>, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator>& erased_parents,
+                    std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type>::iterator>& erased_children,
                     Virus::id_type const &id,
                     bool first = true) {
         auto to_erase = viral_map.find(id);
@@ -259,7 +262,7 @@ private: //Tutaj wrzucę jakieś pomocnicze funkcje, do przeniesienia potem
 
         for (auto child = to_erase->second->children.begin(); child != to_erase->second->children.end(); ++child) {
             //^iterator do pierwszego dziecka
-            Node *child_pointer = child->second.get();
+            auto child_pointer = child->second;
             auto parent_at_child = child_pointer->parents.find(id);
             //^iterator do rodzica
             erased_children.insert({child_pointer, parent_at_child});
@@ -270,9 +273,8 @@ private: //Tutaj wrzucę jakieś pomocnicze funkcje, do przeniesienia potem
         
         if (first)        //Żaden ojciec inny niż ojciec pierwszego usuwanego wierzchołka nie straci dziecka
             for (auto parent = to_erase->second->parents.begin(); parent != to_erase->second->parents.end(); ++parent) {
-                Node *parent_pointer = viral_map.find(*parent)->second;
-                typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator c = parent_pointer->children.find(id);
-                erased_parents.insert({parent_pointer, c});
+                auto parent_pointer = viral_map.find(*parent)->second;
+                erased_parents.insert({parent_pointer, parent_pointer->children.find(id)});
             }
     };
 };
