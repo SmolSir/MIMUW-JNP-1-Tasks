@@ -205,14 +205,15 @@ public:
         if (id == get_stem_id()) {
             throw TriedToRemoveStemVirusException();
         }
+        /*
         std::cout << "remove " << id << std::endl << "CZYTANIE MAPY\n";
         for (auto x = viral_map.begin(); x != viral_map.end(); ++x) {
-          std::cout << "TO JEST NODE " << x->first << std::endl << "DZIECI: \n";
+          std::cout << "TO JEST NODE " << x->first << std::endl << "RODZICOW: " << x->second->parents.size() << "\nDZIECI: \n";
           for (auto child = x->second->children.begin(); child != x->second->children.end(); ++child) {
             std::cout << "TO JEST DZIECKO: " << child->first << " z shared_ptr = " << child->second.use_count() << std::endl;
 
           }
-        }
+        } */
 
         try {
             std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> to_be_erased;
@@ -222,16 +223,11 @@ public:
             add_erased(to_be_erased, erased_parents, erased_children, id);
 
             for (auto child : erased_children) {
-                std::cout << "Nowa: ";
                 std::cout << child.first->virus.get_id() << std::endl;
                 child.first->parents.erase(child.second);
-                std::cout << "skuces\n";
             }
 
-            std::cout << "u rodzicow usuwanie  size " << erased_parents.size() << std::endl;            
             for (auto parent : erased_parents) {
-                std::cout << "U " << parent.first->virus.get_id() << std::endl;
-                std::cout << "dziecko " << parent.second->first << std::endl;
                 parent.first->children.erase(parent.second);
             }
 
@@ -266,8 +262,8 @@ private: //Tutaj wrzucę jakieś pomocnicze funkcje, do przeniesienia potem
             auto parent_at_child = child_pointer->parents.find(id);
             //^iterator do rodzica
             erased_children.insert({child_pointer, parent_at_child});
-            if (erased_parents.count(child_pointer) == child_pointer->parents.size()) {
-                add_erased(to_be_erased, erased_parents, erased_children, id, false);
+            if (erased_children.count(child_pointer) == child_pointer->parents.size()) {
+                add_erased(to_be_erased, erased_parents, erased_children, child_pointer->virus.get_id(), false);
             }
         }
         
