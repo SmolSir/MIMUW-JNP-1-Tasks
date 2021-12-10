@@ -74,8 +74,13 @@ public:
       std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator iter;
       children_iterator() : iter() { };
       children_iterator(std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator const &iter) : iter(iter) { };
+      using difference_type = std::ptrdiff_t;
+      using value_type = const Virus;
+      using pointer = const Virus*;
+      using reference = const Virus&;
+      using iterator_category = std::bidirectional_iterator_tag;
 
-      const Virus& operator*() {
+      const Virus& operator*() const {
           return iter->second->virus;
       };
 
@@ -101,11 +106,15 @@ public:
           return copy;
       };
 
-      bool operator!=(const children_iterator &ch_iter) {
+      bool operator==(const children_iterator &ch_iter) const {
+          return this->iter == ch_iter.iter;
+      };
+
+      bool operator!=(const children_iterator &ch_iter) const {
           return this->iter != ch_iter.iter;
       };
 
-      Virus* operator->() {
+      const Virus* operator->() const {
           return &(iter->second->virus);
       };
   };
