@@ -8,19 +8,19 @@
 #include <iterator>
 #include <iostream>
 
-class VirusNotFoundException : public std::exception {
+class VirusNotFound : public std::exception {
     virtual const char* what() const throw() {
         return "VirusNotFound";
     }
 };
 
-class VirusAlreadyCreatedException : public std::exception {
+class VirusAlreadyCreated : public std::exception {
     virtual const char* what() const throw() {
         return "VirusAlreadyCreated";
     }
 };
 
-class TriedToRemoveStemVirusException : public std::exception {
+class TriedToRemoveStemVirus : public std::exception {
     virtual const char* what() const throw() {
         return "TriedToRemoveStemVirus";
     }
@@ -35,15 +35,8 @@ public:
         std::map<typename Virus::id_type, std::shared_ptr<Node>> children;
         std::set<typename Virus::id_type> parents;
 
-        Node(const Virus::id_type &virus_id) : virus(virus_id) {};
-        Node() {};
-        ~Node() {/*
-          std::cout << "START\n";
-          for (auto child = children.begin(); child != children.end(); ++child) {
-              children.erase(child);
-          }
-          std::cout << "END\n"; */
-        };
+        Node(const Virus::id_type &virus_id) : virus(virus_id) { };
+        Node() { };
 
         std::vector<typename Virus::id_type> parents_vector() const {
             return std::vector(parents.begin(), parents.end());
@@ -57,18 +50,15 @@ public:
             std::shared_ptr<Node> pointer_to_child(child_virus);
             children.insert({child_virus->virus.get_id(), pointer_to_child});
         };
-
-        Node* create_and_add_child(typename Virus::id_type const &child_id) {
-            std::shared_ptr<Node> pointer_to_child = make_shared<Node>(child_id);
-            children.insert({child_id, pointer_to_child});
-            return pointer_to_child.get();
-        };
     };
 
     std::map<typename Virus::id_type, std::shared_ptr<Node>> viral_map;
     std::shared_ptr<Node> stem_node;
 
 public:
+    VirusGenealogy<Virus>& operator=(const VirusGenealogy<Virus>&) = delete;
+    VirusGenealogy<Virus>(const VirusGenealogy<Virus>&) = delete;
+
     class children_iterator {
     public:
       std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator iter;
@@ -134,19 +124,25 @@ public:
     // TODO
     // trzeba samemu zdefiniować children_iterator
     VirusGenealogy<Virus>::children_iterator get_children_begin(typename Virus::id_type const &id) const {
+        if (!exists(id)) {
+            throw VirusNotFound();
+        }
         return children_iterator(viral_map.at(id)->children.begin());
     };
 
     // TODO
     // trzeba samemu zdefiniować children_iterator
     VirusGenealogy<Virus>::children_iterator get_children_end(typename Virus::id_type const &id) const {
+        if (!exists(id)) {
+            throw VirusNotFound();
+        }
         return children_iterator(viral_map.at(id)->children.end());
     };
 
     // TODO
     std::vector<typename Virus::id_type> get_parents(typename Virus::id_type const &id) const {
         if (!exists(id)) {
-            throw VirusNotFoundException();
+            throw VirusNotFound();
         }
         return viral_map.at(id)->parents_vector(); // tutaj można tak czy trzeba przez copy() ?
         //To chyba i tak kopiuje zawartość. Trochę nie jestem jednak pewien czy nie może rzucać wyjątków w trakcie (ale to bym zostawił na potem)
@@ -159,20 +155,20 @@ public:
 
     const Virus& operator[](typename Virus::id_type const &id) const {
         if (!exists(id)) {
-            throw VirusNotFoundException();
+            throw VirusNotFound();
         }
         return viral_map.at(id)->virus;
     };
 
     void create(typename Virus::id_type const &id, typename Virus::id_type const &parent_id) {
         if (exists(id)) {
-            throw VirusAlreadyCreatedException();
+            throw VirusAlreadyCreated();
         }
         if (!exists(parent_id)) {
-            throw VirusNotFoundException();
+            throw VirusNotFound();
         }
 
-        std::shared_ptr<Node> new_virus = make_shared<Node>(id);
+        std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
         viral_map[id] = new_virus;
         viral_map[parent_id]->add_child(new_virus);
         new_virus->add_parent(parent_id);
@@ -180,15 +176,15 @@ public:
 
     void create(typename Virus::id_type const &id, std::vector<typename Virus::id_type> const &parent_ids) {
         if (exists(id)) {
-            throw VirusAlreadyCreatedException();
+            throw VirusAlreadyCreated();
         }
         for (auto parent : parent_ids) {
             if (!exists(parent)) {
-                throw VirusNotFoundException();
+                throw VirusNotFound();
             }
         }
 
-        std::shared_ptr<Node> new_virus = make_shared<Node>(id);
+        std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
         viral_map[id] = new_virus;
 
         for (auto i = 0; i < parent_ids.size(); ++i) {
@@ -199,7 +195,7 @@ public:
 
     void connect(typename Virus::id_type const &child_id, typename Virus::id_type const &parent_id) {
         if (!exists(child_id) || !exists(parent_id)) {
-            throw VirusNotFoundException();
+            throw VirusNotFound();
         }
 
         viral_map[child_id]->add_parent(parent_id);
@@ -209,20 +205,11 @@ public:
     // TODO
     void remove(Virus::id_type const &id) {
         if (!exists(id)) {
-            throw VirusNotFoundException();
+            throw VirusNotFound();
         }
         if (id == get_stem_id()) {
-            throw TriedToRemoveStemVirusException();
+            throw TriedToRemoveStemVirus();
         }
-        /*
-        std::cout << "remove " << id << std::endl << "CZYTANIE MAPY\n";
-        for (auto x = viral_map.begin(); x != viral_map.end(); ++x) {
-          std::cout << "TO JEST NODE " << x->first << std::endl << "RODZICOW: " << x->second->parents.size() << "\nDZIECI: \n";
-          for (auto child = x->second->children.begin(); child != x->second->children.end(); ++child) {
-            std::cout << "TO JEST DZIECKO: " << child->first << " z shared_ptr = " << child->second.use_count() << std::endl;
-
-          }
-        } */
 
         try {
             std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> to_be_erased;
@@ -232,7 +219,6 @@ public:
             add_erased(to_be_erased, erased_parents, erased_children, id);
 
             for (auto child : erased_children) {
-                std::cout << child.first->virus.get_id() << std::endl;
                 child.first->parents.erase(child.second);
             }
 
