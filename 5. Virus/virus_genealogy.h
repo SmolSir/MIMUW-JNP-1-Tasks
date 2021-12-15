@@ -6,6 +6,8 @@
 #include <map>
 #include <set>
 #include <iterator>
+
+//TODO Do wywalenia, na potrzeby debuggingu
 #include <iostream>
 
 class VirusNotFound : public std::exception {
@@ -26,12 +28,15 @@ class TriedToRemoveStemVirus : public std::exception {
     }
 };
 
+//TODO pointer to implementation
 template<class Virus>
 class VirusGenealogy {
 public:
     class Node {
     public:
         Virus virus;
+        //TODO można się zastanowić czy nie lepiej trzymać zwykłe pointery:
+        //shared i tak są w mapie i giną wtw gdy ginie mapa, a nie mają memory leaków nawet przy cyklu
         std::map<typename Virus::id_type, std::shared_ptr<Node>> children;
         std::set<typename Virus::id_type> parents;
 
@@ -42,13 +47,13 @@ public:
             return std::vector(parents.begin(), parents.end());
         }
 
-        void add_parent(const Virus::id_type &parent_id) {
-            parents.insert(parent_id);
+        auto add_parent(const Virus::id_type &parent_id) {
+            return parents.insert(parent_id);
         };
 
-        void add_child(std::shared_ptr<Node>& child_virus) {
+        auto add_child(std::shared_ptr<Node>& child_virus) {
             std::shared_ptr<Node> pointer_to_child(child_virus);
-            children.insert({child_virus->virus.get_id(), pointer_to_child});
+            return children.insert({child_virus->virus.get_id(), pointer_to_child});
         };
     };
 
@@ -56,19 +61,20 @@ public:
     std::shared_ptr<Node> stem_node;
 
 public:
+    //TODO, chyba tak wyglądają te blokady z treści, ale trzeba sprawdzić czy działa
     VirusGenealogy<Virus>& operator=(const VirusGenealogy<Virus>&) = delete;
     VirusGenealogy<Virus>(const VirusGenealogy<Virus>&) = delete;
 
     class children_iterator {
     public:
-      std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator iter;
-      children_iterator() : iter() { };
-      children_iterator(std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator const &iter) : iter(iter) { };
-      using difference_type = std::ptrdiff_t;
-      using value_type = const Virus;
-      using pointer = const Virus*;
-      using reference = const Virus&;
-      using iterator_category = std::bidirectional_iterator_tag;
+        std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator iter;
+        children_iterator() : iter() { };
+        children_iterator(std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator const &iter) : iter(iter) { };
+        using difference_type = std::ptrdiff_t;
+        using value_type = const Virus;
+        using pointer = const Virus*;
+        using reference = const Virus&;
+        using iterator_category = std::bidirectional_iterator_tag;
 
       const Virus& operator*() const {
           return iter->second->virus;
@@ -107,73 +113,106 @@ public:
       const Virus* operator->() const {
           return &(iter->second->virus);
       };
-  };
+    };
 
-
-    //Wydaje mi się, że to nie może być constexpr (chyba sama mapa nie może, więc to tym bardziej)
     VirusGenealogy(Virus::id_type const &stem_id) {
-        stem_node = std::make_shared<Node>(stem_id);
-        viral_map.insert({stem_id, std::shared_ptr(stem_node)});
-    };
-
-    //Jeśli konstruktor nie może, to chyba wgl nie ma sensu robić rzeczy constexpr
-    Virus::id_type get_stem_id() const {
-        return stem_node.get()->virus.get_id();
-    };
-
-    // TODO
-    // trzeba samemu zdefiniować children_iterator
-    VirusGenealogy<Virus>::children_iterator get_children_begin(typename Virus::id_type const &id) const {
-        if (!exists(id)) {
-            throw VirusNotFound();
+        try {
+            stem_node = std::make_shared<Node>(stem_id);
+            viral_map.insert({stem_id, std::shared_ptr(stem_node)});
         }
-        return children_iterator(viral_map.at(id)->children.begin());
+        catch (...) {
+            throw;
+        }
+    };
+
+    Virus::id_type get_stem_id() const {
+        try {
+            return stem_node->virus.get_id();
+        }
+        catch (...) {
+          throw;
+        }
+    };
+
+    VirusGenealogy<Virus>::children_iterator get_children_begin(typename Virus::id_type const &id) const {
+        try {
+            if (!exists(id))
+                throw VirusNotFound();
+            return children_iterator(viral_map.at(id)->children.begin());
+        }
+        catch (...) {
+          throw;
+        }
     };
 
     // TODO
     // trzeba samemu zdefiniować children_iterator
     VirusGenealogy<Virus>::children_iterator get_children_end(typename Virus::id_type const &id) const {
-        if (!exists(id)) {
-            throw VirusNotFound();
+        try {
+            if (!exists(id))
+                throw VirusNotFound();
+            return children_iterator(viral_map.at(id)->children.end());
         }
-        return children_iterator(viral_map.at(id)->children.end());
+        catch (...) {
+          throw;
+        }
     };
 
-    // TODO
     std::vector<typename Virus::id_type> get_parents(typename Virus::id_type const &id) const {
-        if (!exists(id)) {
-            throw VirusNotFound();
+        try {
+            if (!exists(id))
+                throw VirusNotFound(); 
+            return viral_map.at(id)->parents_vector();
         }
-        return viral_map.at(id)->parents_vector(); // tutaj można tak czy trzeba przez copy() ?
-        //To chyba i tak kopiuje zawartość. Trochę nie jestem jednak pewien czy nie może rzucać wyjątków w trakcie (ale to bym zostawił na potem)
+        catch (...) {
+            throw;
+        }
     };
 
     bool exists(typename Virus::id_type const &id) const {
-        return viral_map.contains(id);
-        //Czy może tutaj zostać rzucony wyjątek? (np jak operator porównania rzuci) <- to pytanie dotyczy wsm każdej funkcji xd
+        try {
+            return viral_map.contains(id);
+        }
+        catch (...) {
+          throw;
+        }
     };
 
     const Virus& operator[](typename Virus::id_type const &id) const {
-        if (!exists(id)) {
-            throw VirusNotFound();
+        try {
+            if (!exists(id))
+                throw VirusNotFound();
+            return viral_map.at(id)->virus;
         }
-        return viral_map.at(id)->virus;
+        catch (...) {
+          throw;
+        }
     };
 
     void create(typename Virus::id_type const &id, typename Virus::id_type const &parent_id) {
-        if (exists(id)) {
-            throw VirusAlreadyCreated();
-        }
-        if (!exists(parent_id)) {
-            throw VirusNotFound();
-        }
+        bool mapped = false;
+        typename std::map<typename Virus::id_type, std::shared_ptr<Node>> :: iterator iter_to_map;
 
-        std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
-        viral_map[id] = new_virus;
-        viral_map[parent_id]->add_child(new_virus);
-        new_virus->add_parent(parent_id);
+        try {
+            if (exists(id))
+                throw VirusAlreadyCreated();
+            if (!exists(parent_id))
+                throw VirusNotFound();
+
+            std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
+            iter_to_map = viral_map.insert({id, new_virus}).first;
+            new_virus->add_parent(parent_id);
+            mapped = true;
+            viral_map[parent_id]->add_child(new_virus);
+        }
+        catch (...) {
+            if (mapped)
+              viral_map.erase(iter_to_map);
+            throw;
+        }
     };
 
+    //TODO wyjątki
     void create(typename Virus::id_type const &id, std::vector<typename Virus::id_type> const &parent_ids) {
         if (exists(id)) {
             throw VirusAlreadyCreated();
@@ -193,6 +232,7 @@ public:
         } 
     };
 
+    //TODO wyjątki
     void connect(typename Virus::id_type const &child_id, typename Virus::id_type const &parent_id) {
         if (!exists(child_id) || !exists(parent_id)) {
             throw VirusNotFound();
@@ -202,7 +242,7 @@ public:
         viral_map[parent_id]->add_child(viral_map[child_id]);
     };
 
-    // TODO
+    // TODO wyjątki
     void remove(Virus::id_type const &id) {
         if (!exists(id)) {
             throw VirusNotFound();
@@ -213,7 +253,6 @@ public:
 
         try {
             std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> to_be_erased;
-            //Tę mapę można chyba zamienić na wektor (set jest posortowany), ale utrzymałem w jednej konwencji
             std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type> :: iterator> erased_children;
             std::map<std::shared_ptr<Node>, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> erased_parents;
             add_erased(to_be_erased, erased_parents, erased_children, id);
@@ -226,20 +265,20 @@ public:
                 parent.first->children.erase(parent.second);
             }
 
-            //Jeśli tutaj dotarliśmy bez wyjątku to reszta się wykona -> nic tam nie jest rzucane
             for (auto erase_from_map : to_be_erased) {
                 viral_map.erase(erase_from_map);
             }
-            //Po usunięciu ostatniego shared pointera do usuwanego wierzchołka wymazane zostanie całe poddrzewo
+            return;
         }
-        catch (int e) {
-            //Coś rzucić
+        catch (...) {
+            //TODO
+            throw;
         }
     };
 
 private: //Tutaj wrzucę jakieś pomocnicze funkcje, do przeniesienia potem
 
-    //Rekurencyjnie dodaje do to_be_erased iteratory do wierzchołków
+    // Rekurencyjnie dodaje do to_be_erased iteratory do wierzchołków
     // to_be_erased -> iteratory do usunięcia z viral_map
     // erased_children -> mapa, dla każdego ojca (klucz) zapisuje iteratory do miejsc w secie dzieci do usunięcia
     // erased_paretns -> iteratory do wierzchołka u ojców usuwanego
