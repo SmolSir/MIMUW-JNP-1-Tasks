@@ -31,7 +31,7 @@ class TriedToRemoveStemVirus : public std::exception {
 //TODO pointer to implementation
 template<class Virus>
 class VirusGenealogy {
-public:
+private:
     class Node {
     public:
         Virus virus;
@@ -56,6 +56,7 @@ public:
             return children.insert({child_virus->virus.get_id(), pointer_to_child});
         };
     };
+    using map_iter_id_to_node_t = typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator;
 
     std::map<typename Virus::id_type, std::shared_ptr<Node>> viral_map;
     std::shared_ptr<Node> stem_node;
@@ -191,8 +192,8 @@ public:
 
     void create(typename Virus::id_type const &id, typename Virus::id_type const &parent_id) {
         bool mapped = false;
-        typename std::map<typename Virus::id_type, std::shared_ptr<Node>> :: iterator iter_to_map;
-
+        map_iter_id_to_node_t iter_to_map;
+        
         try {
             if (exists(id))
                 throw VirusAlreadyCreated();
@@ -214,22 +215,34 @@ public:
 
     //TODO wyjątki
     void create(typename Virus::id_type const &id, std::vector<typename Virus::id_type> const &parent_ids) {
-        if (exists(id)) {
-            throw VirusAlreadyCreated();
-        }
-        for (auto parent : parent_ids) {
-            if (!exists(parent)) {
-                throw VirusNotFound();
+        bool mapped = false;
+        map_iter_id_to_node_t iter_to_map;
+        // Trzeba dorzucić jakiś wektor iteratorów do dzieci / rodziców
+        // W którym będziemy zapisywać iteratory do dodanych pozycji (aby móc to potem odwrócić)
+
+        try {
+            if (exists(id))
+                throw VirusAlreadyCreated();
+            for (auto parent : parent_ids)
+                if (!exists(parent))
+                    throw VirusNotFound();
+
+            std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
+            iter_to_map = viral_map.insert({id, new_virus}).first;
+            mapped = true;
+
+            //Trzeba zapisywać iteratory w jakimś wektorze i przypadku rzucenia wyjątku, odwrócić
+            for (auto i = 0; i < parent_ids.size(); ++i) {
+                viral_map[parent_ids[i]]->add_child(new_virus);
+                new_virus->add_parent(parent_ids[i]);
             }
         }
-
-        std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
-        viral_map[id] = new_virus;
-
-        for (auto i = 0; i < parent_ids.size(); ++i) {
-            viral_map[parent_ids[i]]->add_child(new_virus);
-            new_virus->add_parent(parent_ids[i]);
-        } 
+        catch (...) {
+            if (mapped)
+                viral_map.erase(iter_to_map);
+            // Jeśli są rzeczy w wektorze iteratorów do rodziców / dzieci to trzeba je usunąć
+            throw;
+        }
     };
 
     //TODO wyjątki
@@ -252,8 +265,9 @@ public:
         }
 
         try {
+            // Można jakiś prywatny using na te syfy zdefiniować 
             std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> to_be_erased;
-            std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type> :: iterator> erased_children;
+            std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type>::iterator> erased_children;
             std::map<std::shared_ptr<Node>, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> erased_parents;
             add_erased(to_be_erased, erased_parents, erased_children, id);
 
