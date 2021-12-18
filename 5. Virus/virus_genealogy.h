@@ -56,8 +56,11 @@ private:
             return children.insert({child_virus->virus.get_id(), pointer_to_child});
         };
     };
-    using map_iter_id_to_node_t = typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator;
-    using set_iter_id_to_node_t = typename std::set<typename Virus::id_type>::iterator;
+  //  using map_iter_id_to_node_t = typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator;
+  //  using set_iter_id_to_node_t = typename std::set<typename Virus::id_type>::iterator;
+
+    using map_insert_return_type = std::pair<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator, bool>;
+    using set_insert_return_type = std::pair<typename std::set<typename Virus::id_type>::iterator, bool>;
 
     std::map<typename Virus::id_type, std::shared_ptr<Node>> viral_map;
     std::shared_ptr<Node> stem_node;
@@ -190,8 +193,8 @@ public:
     };
 
     void create(typename Virus::id_type const &id, typename Virus::id_type const &parent_id) {
-        std::pair<map_iter_id_to_node_t, bool> map_insert_result;
-        std::pair<map_iter_id_to_node_t, bool> child_insert_result;
+        map_insert_return_type map_insert_result;
+        map_insert_return_type child_insert_result;
         std::shared_ptr<Node> parent_virus;
 
         map_insert_result.second = false;
@@ -222,13 +225,13 @@ public:
 
     //TODO wyjątki
     void create(typename Virus::id_type const &id, std::vector<typename Virus::id_type> const &parent_ids) {
-        std::pair<map_iter_id_to_node_t, bool> map_insert_result;
+        map_insert_return_type map_insert_result;
 
         map_insert_result.second = false;
 
         // Trzeba dorzucić jakiś wektor iteratorów do dzieci / rodziców,
         // W którym będziemy zapisywać iteratory do dodanych pozycji (aby móc to potem odwrócić)
-        std::vector<std::pair<std::shared_ptr<Node>, std::pair<map_iter_id_to_node_t, bool>>> parents_insert_registry;
+        std::vector<std::pair<std::shared_ptr<Node>, map_insert_return_type>> parents_insert_registry;
         parents_insert_registry.reserve(parent_ids.size());
 
         if (parent_ids.empty()) {
@@ -267,8 +270,8 @@ public:
     //TODO wyjątki
     void connect(typename Virus::id_type const &child_id, typename Virus::id_type const &parent_id) {
 
-        std::pair<set_iter_id_to_node_t, bool> child_add_new_parent;
-        std::pair<map_iter_id_to_node_t, bool> parent_add_new_child;
+        set_insert_return_type child_add_new_parent;
+        map_insert_return_type parent_add_new_child;
         std::shared_ptr<Node> child_virus;
         std::shared_ptr<Node> parent_virus;
 
