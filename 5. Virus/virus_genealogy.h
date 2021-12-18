@@ -190,8 +190,9 @@ public:
     };
 
     void create(typename Virus::id_type const &id, typename Virus::id_type const &parent_id) {
-        bool mapped = false;
-        map_iter_id_to_node_t iter_to_map;
+        std::pair<map_iter_id_to_node_t, bool> map_insert_result;
+        std::pair<map_iter_id_to_node_t, bool> child_insert_result;
+        std::shared_ptr<Node> parent_virus;
 
         try {
             if (exists(id))
@@ -200,14 +201,18 @@ public:
                 throw VirusNotFound();
 
             std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
-            iter_to_map = viral_map.insert({id, new_virus}).first;
+            map_insert_result = viral_map.insert({id, new_virus});
+
             new_virus->add_parent(parent_id);
-            mapped = true;
-            viral_map[parent_id]->add_child(new_virus);
+
+            parent_virus = viral_map[parent_id];
+            child_insert_result = (parent_virus->add_child(new_virus));
         }
         catch (...) {
-            if (mapped)
-                viral_map.erase(iter_to_map);
+            if (map_insert_result.second)
+                viral_map.erase(map_insert_result.first);
+            if (child_insert_result.second)
+                parent_virus->children.erase(child_insert_result.first);
             throw;
         }
     };
@@ -218,9 +223,15 @@ public:
         map_iter_id_to_node_t iter_to_map;
         map_iter_id_to_node_t iter_to_child;
 
+        std::pair<map_iter_id_to_node_t, bool> map_insert_result;
+
         // Trzeba dorzucić jakiś wektor iteratorów do dzieci / rodziców,
         // W którym będziemy zapisywać iteratory do dodanych pozycji (aby móc to potem odwrócić)
-        std::vector<std::pair<typename Virus::id_type, map_iter_id_to_node_t>> parents_insert_registry;
+        std::vector<std::pair<std::shared_ptr<Node>, std::pair<map_iter_id_to_node_t, bool>>> parents_insert_registry;
+
+        if (parent_ids.empty()) {
+            return;
+        }
 
         try {
             if (exists(id))
@@ -230,21 +241,21 @@ public:
                     throw VirusNotFound();
 
             std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
-            iter_to_map = viral_map.insert({id, new_virus}).first;
-            mapped = true;
+            map_insert_result = viral_map.insert({id, new_virus});
 
             //Trzeba zapisywać iteratory w jakimś wektorze i przypadku rzucenia wyjątku, odwrócić
             for (auto pid : parent_ids) {
-                iter_to_child = (viral_map[pid]->add_child(new_virus)).first;
-                parents_insert_registry.push_back({pid, iter_to_child});
                 new_virus->add_parent(pid);
+                std::shared_ptr<Node> parent_virus = viral_map[pid];
+                parents_insert_registry.push_back({parent_virus, parent_virus->add_child(new_virus)});
             }
         }
         catch (...) {
-            if (mapped)
-                viral_map.erase(iter_to_map);
+            if (map_insert_result.second)
+                viral_map.erase(map_insert_result.first);
             for (auto log : parents_insert_registry) {
-                viral_map[log.first]->children.erase(log.second);
+                if (log.second.second)
+                    log.first->children.erase(log.second.first);
             }
             // Jeśli są rzeczy w wektorze iteratorów do rodziców / dzieci to trzeba je usunąć
             throw;
@@ -254,10 +265,10 @@ public:
     //TODO wyjątki
     void connect(typename Virus::id_type const &child_id, typename Virus::id_type const &parent_id) {
 
-        bool childs_parent_mapped = false;
-        bool parents_child_mapped = false;
-        map_iter_id_to_node_t parents_iter_to_child;
-        set_iter_id_to_node_t childs_iter_to_parent;
+        std::pair<set_iter_id_to_node_t, bool> child_add_new_parent;
+        std::pair<map_iter_id_to_node_t, bool> parent_add_new_child;
+        std::shared_ptr<Node> child_virus;
+        std::shared_ptr<Node> parent_virus;
 
         try {
 
@@ -265,17 +276,18 @@ public:
                 throw VirusNotFound();
             }
 
-            childs_iter_to_parent = (viral_map[child_id]->add_parent(parent_id)).first;
-            childs_parent_mapped = true;
-            parents_iter_to_child = (viral_map[parent_id]->add_child(viral_map[child_id])).first;
-            parents_child_mapped = true;
+            child_virus = viral_map[child_id];
+            parent_virus = viral_map[parent_id];
+
+            child_add_new_parent = child_virus->add_parent(parent_id);
+            parent_add_new_child = parent_virus->add_child(child_virus);
         }
         catch (...) {
-            if (childs_parent_mapped) {
-                viral_map[child_id]->parents.erase(childs_iter_to_parent);
+            if (child_add_new_parent.second) {
+                child_virus->parents.erase(child_add_new_parent.first);
             }
-            if (parents_child_mapped) {
-                viral_map[parent_id]->children.erase(parents_iter_to_child);
+            if (parent_add_new_child.second) {
+                parent_virus->children.erase(parent_add_new_child.first);
             }
             throw;
         }
