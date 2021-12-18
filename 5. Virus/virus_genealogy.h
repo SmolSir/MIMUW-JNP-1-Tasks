@@ -7,23 +7,20 @@
 #include <set>
 #include <iterator>
 
-//TODO Do wywalenia, na potrzeby debuggingu
-#include <iostream>
-
 class VirusNotFound : public std::exception {
-    virtual const char* what() const throw() {
+    const char* what() const noexcept override {
         return "VirusNotFound";
     }
 };
 
 class VirusAlreadyCreated : public std::exception {
-    virtual const char* what() const throw() {
+    const char* what() const noexcept override {
         return "VirusAlreadyCreated";
     }
 };
 
 class TriedToRemoveStemVirus : public std::exception {
-    virtual const char* what() const throw() {
+    const char* what() const noexcept override {
         return "TriedToRemoveStemVirus";
     }
 };
@@ -35,17 +32,15 @@ private:
     class Node {
     public:
         Virus virus;
-        //TODO można się zastanowić czy nie lepiej trzymać zwykłe pointery:
-        //shared i tak są w mapie i giną wtw gdy ginie mapa, a nie mają memory leaków nawet przy cyklu
         std::map<typename Virus::id_type, std::shared_ptr<Node>> children;
         std::set<typename Virus::id_type> parents;
 
         Node(const typename Virus::id_type &virus_id) : virus(virus_id) { };
-        Node() { };
+        Node() = default;
 
         std::vector<typename Virus::id_type> parents_vector() const {
             return std::vector(parents.begin(), parents.end());
-        }
+        };
 
         auto add_parent(const typename Virus::id_type &parent_id) {
             return parents.insert(parent_id);
@@ -58,16 +53,37 @@ private:
 
         bool child_exists(const typename Virus::id_type &child_id) {
             return children.contains(child_id);
-        }
+        };
     };
-  //  using map_iter_id_to_node_t = typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator;
-  //  using set_iter_id_to_node_t = typename std::set<typename Virus::id_type>::iterator;
 
     using map_insert_return_type = std::pair<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator, bool>;
     using set_insert_return_type = std::pair<typename std::set<typename Virus::id_type>::iterator, bool>;
 
     std::map<typename Virus::id_type, std::shared_ptr<Node>> viral_map;
     std::shared_ptr<Node> stem_node;
+
+    void add_erased(std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator>& to_be_erased,
+                    std::map<std::shared_ptr<Node>, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator>& erased_parents,
+                    std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type>::iterator>& erased_children,
+                    typename Virus::id_type const &id) {
+        auto to_erase = viral_map.find(id);
+        to_be_erased.push_back(to_erase);
+
+        for (auto child = to_erase->second->children.begin(); child != to_erase->second->children.end(); ++child) {
+            auto child_pointer = child->second;
+            auto parent_at_child = child_pointer->parents.find(id);
+            erased_children.insert({child_pointer, parent_at_child});
+            if (erased_children.count(child_pointer) == child_pointer->parents.size()) {
+                add_erased(to_be_erased, erased_parents, erased_children, child_pointer->virus.get_id());
+            }
+        }
+
+        // Żaden ojciec inny niż ojciec pierwszego usuwanego wierzchołka nie straci dziecka
+        for (auto parent = to_erase->second->parents.begin(); parent != to_erase->second->parents.end(); ++parent) {
+            auto parent_pointer = viral_map.find(*parent)->second;
+            erased_parents.insert({parent_pointer, parent_pointer->children.find(id)});
+        }
+    };
 
 public:
     //TODO, chyba tak wyglądają te blokady z treści, ale trzeba sprawdzić czy działa
@@ -79,6 +95,7 @@ public:
         typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator iter;
         children_iterator() : iter() { };
         children_iterator(typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator const &iter) : iter(iter) { };
+
         using difference_type = std::ptrdiff_t;
         using value_type = const Virus;
         using pointer = const Virus*;
@@ -145,8 +162,9 @@ public:
 
     VirusGenealogy<Virus>::children_iterator get_children_begin(typename Virus::id_type const &id) const {
         try {
-            if (!exists(id))
+            if (!exists(id)) {
                 throw VirusNotFound();
+            }
             return children_iterator(viral_map.at(id)->children.begin());
         }
         catch (...) {
@@ -156,8 +174,9 @@ public:
 
     VirusGenealogy<Virus>::children_iterator get_children_end(typename Virus::id_type const &id) const {
         try {
-            if (!exists(id))
+            if (!exists(id)) {
                 throw VirusNotFound();
+            }
             return children_iterator(viral_map.at(id)->children.end());
         }
         catch (...) {
@@ -167,8 +186,9 @@ public:
 
     std::vector<typename Virus::id_type> get_parents(typename Virus::id_type const &id) const {
         try {
-            if (!exists(id))
+            if (!exists(id)) {
                 throw VirusNotFound();
+            }
             return viral_map.at(id)->parents_vector();
         }
         catch (...) {
@@ -187,8 +207,9 @@ public:
 
     const Virus& operator[](typename Virus::id_type const &id) const {
         try {
-            if (!exists(id))
+            if (!exists(id)) {
                 throw VirusNotFound();
+            }
             return viral_map.at(id)->virus;
         }
         catch (...) {
@@ -206,36 +227,38 @@ public:
         child_insert_result.second = false;
 
         try {
-            if (exists(id))
+            if (exists(id)) {
                 throw VirusAlreadyCreated();
-            if (!exists(parent_id))
+            }
+            if (!exists(parent_id)) {
                 throw VirusNotFound();
+            }
 
             new_virus = std::make_shared<Node>(id);
-            map_insert_result = viral_map.insert({id, new_virus});
-
-            new_virus->add_parent(parent_id);
-
             parent_virus = viral_map[parent_id];
+
+            map_insert_result = viral_map.insert({id, new_virus});
             child_insert_result = (parent_virus->add_child(new_virus));
+            new_virus->add_parent(parent_id);
         }
         catch (...) {
-            if (map_insert_result.second)
+            if (map_insert_result.second) {
                 viral_map.erase(map_insert_result.first);
-            if (child_insert_result.second)
+            }
+            if (child_insert_result.second) {
                 parent_virus->children.erase(child_insert_result.first);
+            }
             throw;
         }
     };
 
-    //TODO wyjątki
     void create(typename Virus::id_type const &id, std::vector<typename Virus::id_type> const &parent_ids) {
         map_insert_return_type map_insert_result;
+        std::shared_ptr<Node> new_virus;
+        std::shared_ptr<Node> parent_virus;
 
         map_insert_result.second = false;
 
-        // Trzeba dorzucić jakiś wektor iteratorów do dzieci / rodziców,
-        // W którym będziemy zapisywać iteratory do dodanych pozycji (aby móc to potem odwrócić)
         std::vector<std::pair<std::shared_ptr<Node>, map_insert_return_type>> parents_insert_registry;
         parents_insert_registry.reserve(parent_ids.size());
 
@@ -244,18 +267,20 @@ public:
         }
 
         try {
-            if (exists(id))
+            if (exists(id)) {
                 throw VirusAlreadyCreated();
-            for (auto parent : parent_ids)
-                if (!exists(parent))
+            }
+            for (auto parent : parent_ids) {
+                if (!exists(parent)) {
                     throw VirusNotFound();
+                }
+            }
 
-            std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
+            new_virus = std::make_shared<Node>(id);
             map_insert_result = viral_map.insert({id, new_virus});
 
-            //Trzeba zapisywać iteratory w jakimś wektorze i przypadku rzucenia wyjątku, odwrócić
             for (auto pid : parent_ids) {
-                std::shared_ptr<Node> parent_virus = viral_map[pid];
+                parent_virus = viral_map[pid];
                 if (parent_virus->child_exists(id)) {
                     continue;
                 }
@@ -265,18 +290,18 @@ public:
             }
         }
         catch (...) {
-            if (map_insert_result.second)
+            if (map_insert_result.second) {
                 viral_map.erase(map_insert_result.first);
-            for (auto log : parents_insert_registry) {
-                if (log.second.second)
-                    log.first->children.erase(log.second.first);
             }
-            // Jeśli są rzeczy w wektorze iteratorów do rodziców / dzieci to trzeba je usunąć
+            for (auto log : parents_insert_registry) {
+                if (log.second.second) {
+                    log.first->children.erase(log.second.first);
+                }
+            }
             throw;
         }
     };
 
-    //TODO wyjątki
     void connect(typename Virus::id_type const &child_id, typename Virus::id_type const &parent_id) {
 
         set_insert_return_type child_add_new_parent;
@@ -314,7 +339,6 @@ public:
         }
     };
 
-    // TODO wyjątki
     void remove(typename Virus::id_type const &id) {
         if (!exists(id)) {
             throw VirusNotFound();
@@ -324,7 +348,6 @@ public:
         }
 
         try {
-            // Można jakiś prywatny using na te syfy zdefiniować
             std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> to_be_erased;
             std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type>::iterator> erased_children;
             std::map<std::shared_ptr<Node>, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> erased_parents;
@@ -347,38 +370,6 @@ public:
             //TODO
             throw;
         }
-    };
-
-private: //Tutaj wrzucę jakieś pomocnicze funkcje, do przeniesienia potem
-
-    // Rekurencyjnie dodaje do to_be_erased iteratory do wierzchołków
-    // to_be_erased -> iteratory do usunięcia z viral_map
-    // erased_children -> mapa, dla każdego ojca (klucz) zapisuje iteratory do miejsc w secie dzieci do usunięcia
-    // erased_parents -> iteratory do wierzchołka u ojców usuwanego
-    void add_erased(std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator>& to_be_erased,
-                    std::map<std::shared_ptr<Node>, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator>& erased_parents,
-                    std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type>::iterator>& erased_children,
-                    typename Virus::id_type const &id,
-                    bool first = true) {
-        auto to_erase = viral_map.find(id);
-        to_be_erased.push_back(to_erase);
-
-        for (auto child = to_erase->second->children.begin(); child != to_erase->second->children.end(); ++child) {
-            //^iterator do pierwszego dziecka
-            auto child_pointer = child->second;
-            auto parent_at_child = child_pointer->parents.find(id);
-            //^iterator do rodzica
-            erased_children.insert({child_pointer, parent_at_child});
-            if (erased_children.count(child_pointer) == child_pointer->parents.size()) {
-                add_erased(to_be_erased, erased_parents, erased_children, child_pointer->virus.get_id(), false);
-            }
-        }
-
-        if (first)        //Żaden ojciec inny niż ojciec pierwszego usuwanego wierzchołka nie straci dziecka
-            for (auto parent = to_erase->second->parents.begin(); parent != to_erase->second->parents.end(); ++parent) {
-                auto parent_pointer = viral_map.find(*parent)->second;
-                erased_parents.insert({parent_pointer, parent_pointer->children.find(id)});
-            }
     };
 };
 
