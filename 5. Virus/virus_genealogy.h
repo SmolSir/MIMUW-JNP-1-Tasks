@@ -194,6 +194,9 @@ public:
         std::pair<map_iter_id_to_node_t, bool> child_insert_result;
         std::shared_ptr<Node> parent_virus;
 
+        map_insert_result.second = false;
+        child_insert_result.second = false;
+
         try {
             if (exists(id))
                 throw VirusAlreadyCreated();
@@ -219,11 +222,9 @@ public:
 
     //TODO wyjątki
     void create(typename Virus::id_type const &id, std::vector<typename Virus::id_type> const &parent_ids) {
-        bool mapped = false;
-        map_iter_id_to_node_t iter_to_map;
-        map_iter_id_to_node_t iter_to_child;
-
         std::pair<map_iter_id_to_node_t, bool> map_insert_result;
+
+        map_insert_result.second = false;
 
         // Trzeba dorzucić jakiś wektor iteratorów do dzieci / rodziców,
         // W którym będziemy zapisywać iteratory do dodanych pozycji (aby móc to potem odwrócić)
@@ -269,6 +270,9 @@ public:
         std::pair<map_iter_id_to_node_t, bool> parent_add_new_child;
         std::shared_ptr<Node> child_virus;
         std::shared_ptr<Node> parent_virus;
+
+        child_add_new_parent.second = false;
+        parent_add_new_child.second = false;
 
         try {
 
