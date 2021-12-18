@@ -55,6 +55,10 @@ private:
             std::shared_ptr<Node> pointer_to_child(child_virus);
             return children.insert({child_virus->virus.get_id(), pointer_to_child});
         };
+
+        bool child_exists(const typename Virus::id_type &child_id) {
+            return children.contains(child_id);
+        }
     };
   //  using map_iter_id_to_node_t = typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator;
   //  using set_iter_id_to_node_t = typename std::set<typename Virus::id_type>::iterator;
@@ -195,6 +199,7 @@ public:
     void create(typename Virus::id_type const &id, typename Virus::id_type const &parent_id) {
         map_insert_return_type map_insert_result;
         map_insert_return_type child_insert_result;
+        std::shared_ptr<Node> new_virus;
         std::shared_ptr<Node> parent_virus;
 
         map_insert_result.second = false;
@@ -206,7 +211,7 @@ public:
             if (!exists(parent_id))
                 throw VirusNotFound();
 
-            std::shared_ptr<Node> new_virus = std::make_shared<Node>(id);
+            new_virus = std::make_shared<Node>(id);
             map_insert_result = viral_map.insert({id, new_virus});
 
             new_virus->add_parent(parent_id);
@@ -250,8 +255,12 @@ public:
 
             //Trzeba zapisywać iteratory w jakimś wektorze i przypadku rzucenia wyjątku, odwrócić
             for (auto pid : parent_ids) {
-                new_virus->add_parent(pid);
                 std::shared_ptr<Node> parent_virus = viral_map[pid];
+                if (parent_virus->child_exists(id)) {
+                    continue;
+                }
+
+                new_virus->add_parent(pid);
                 parents_insert_registry.push_back({parent_virus, parent_virus->add_child(new_virus)});
             }
         }
@@ -286,6 +295,10 @@ public:
 
             child_virus = viral_map[child_id];
             parent_virus = viral_map[parent_id];
+
+            if (parent_virus->child_exists(child_id)) {
+                return;
+            }
 
             child_add_new_parent = child_virus->add_parent(parent_id);
             parent_add_new_child = parent_virus->add_child(child_virus);
