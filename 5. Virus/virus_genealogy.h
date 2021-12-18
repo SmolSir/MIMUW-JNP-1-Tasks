@@ -229,6 +229,7 @@ public:
         // Trzeba dorzucić jakiś wektor iteratorów do dzieci / rodziców,
         // W którym będziemy zapisywać iteratory do dodanych pozycji (aby móc to potem odwrócić)
         std::vector<std::pair<std::shared_ptr<Node>, std::pair<map_iter_id_to_node_t, bool>>> parents_insert_registry;
+        parents_insert_registry.reserve(parent_ids.size());
 
         if (parent_ids.empty()) {
             return;
