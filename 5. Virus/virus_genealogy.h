@@ -25,15 +25,26 @@ class TriedToRemoveStemVirus : public std::exception {
     }
 };
 
-//TODO pointer to implementation
 template<class Virus>
 class VirusGenealogy {
 private:
+    class Node;
+
+    using viral_map_type = std::map<typename Virus::id_type, std::shared_ptr<Node>>;
+    using viral_map_it_type = typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator;
+    using viral_set_type = std::set<typename Virus::id_type>;
+    using viral_set_it_type = typename std::set<typename Virus::id_type>::iterator;
+    using map_insert_return_type = std::pair<viral_map_it_type, bool>;
+    using set_insert_return_type = std::pair<viral_set_it_type, bool>;
+
+    viral_map_type viral_map;
+    std::shared_ptr<Node> stem_node;
+
     class Node {
     public:
         Virus virus;
-        std::map<typename Virus::id_type, std::shared_ptr<Node>> children;
-        std::set<typename Virus::id_type> parents;
+        viral_map_type children;
+        viral_set_type parents;
 
         Node(const typename Virus::id_type &virus_id) : virus(virus_id) { };
         Node() = default;
@@ -56,21 +67,17 @@ private:
         };
     };
 
-    using map_insert_return_type = std::pair<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator, bool>;
-    using set_insert_return_type = std::pair<typename std::set<typename Virus::id_type>::iterator, bool>;
-
-    std::map<typename Virus::id_type, std::shared_ptr<Node>> viral_map;
-    std::shared_ptr<Node> stem_node;
-
-    void add_erased(std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator>& to_be_erased,
-                    std::map<std::shared_ptr<Node>, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator>& erased_parents,
-                    std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type>::iterator>& erased_children,
+    void add_erased(std::vector<viral_map_it_type>& to_be_erased,
+                    std::map<std::shared_ptr<Node>, viral_map_it_type>& erased_parents,
+                    std::multimap<std::shared_ptr<Node>, viral_set_it_type>& erased_children,
                     typename Virus::id_type const &id) {
-        auto to_erase = viral_map.find(id);
-        to_be_erased.push_back(to_erase);
 
-        for (auto child = to_erase->second->children.begin(); child != to_erase->second->children.end(); ++child) {
-            auto child_pointer = child->second;
+        auto children_to_erase = viral_map.find(id)->second->children;
+        auto parents_to_erase = viral_map.find(id)->second->parents;
+        to_be_erased.push_back(viral_map.find(id));
+
+        for (auto child : children_to_erase) {
+            auto child_pointer = child.second;
             auto parent_at_child = child_pointer->parents.find(id);
             erased_children.insert({child_pointer, parent_at_child});
             if (erased_children.count(child_pointer) == child_pointer->parents.size()) {
@@ -79,22 +86,22 @@ private:
         }
 
         // Żaden ojciec inny niż ojciec pierwszego usuwanego wierzchołka nie straci dziecka
-        for (auto parent = to_erase->second->parents.begin(); parent != to_erase->second->parents.end(); ++parent) {
-            auto parent_pointer = viral_map.find(*parent)->second;
+        for (auto parent : parents_to_erase) {
+            auto parent_pointer = viral_map.find(parent)->second;
             erased_parents.insert({parent_pointer, parent_pointer->children.find(id)});
         }
     };
 
 public:
-    //TODO, chyba tak wyglądają te blokady z treści, ale trzeba sprawdzić czy działa
     VirusGenealogy<Virus>& operator=(const VirusGenealogy<Virus>&) = delete;
     VirusGenealogy<Virus>(const VirusGenealogy<Virus>&) = delete;
 
     class children_iterator {
     public:
-        typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator iter;
+        viral_map_it_type iter;
+
         children_iterator() : iter() { };
-        children_iterator(typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator const &iter) : iter(iter) { };
+        children_iterator(viral_map_it_type const &iter) : iter(iter) { };
 
         using difference_type = std::ptrdiff_t;
         using value_type = const Virus;
@@ -281,6 +288,7 @@ public:
 
             for (auto pid : parent_ids) {
                 parent_virus = viral_map[pid];
+
                 if (parent_virus->child_exists(id)) {
                     continue;
                 }
@@ -313,7 +321,6 @@ public:
         parent_add_new_child.second = false;
 
         try {
-
             if (!exists(child_id) || !exists(parent_id)) {
                 throw VirusNotFound();
             }
@@ -348,9 +355,9 @@ public:
         }
 
         try {
-            std::vector<typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> to_be_erased;
-            std::multimap<std::shared_ptr<Node>, typename std::set<typename Virus::id_type>::iterator> erased_children;
-            std::map<std::shared_ptr<Node>, typename std::map<typename Virus::id_type, std::shared_ptr<Node>>::iterator> erased_parents;
+            std::vector<viral_map_it_type> to_be_erased;
+            std::multimap<std::shared_ptr<Node>, viral_set_it_type> erased_children;
+            std::map<std::shared_ptr<Node>, viral_map_it_type> erased_parents;
             add_erased(to_be_erased, erased_parents, erased_children, id);
 
             for (auto child : erased_children) {
@@ -367,7 +374,6 @@ public:
             return;
         }
         catch (...) {
-            //TODO
             throw;
         }
     };
