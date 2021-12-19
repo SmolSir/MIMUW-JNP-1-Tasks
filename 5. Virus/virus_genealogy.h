@@ -97,17 +97,18 @@ public:
     VirusGenealogy<Virus>(const VirusGenealogy<Virus>&) = delete;
 
     class children_iterator {
-    public:
+    private:
         viral_map_it_type iter;
 
-        children_iterator() : iter() { };
-        children_iterator(viral_map_it_type const &iter) : iter(iter) { };
-
+    public:
         using difference_type = std::ptrdiff_t;
         using value_type = const Virus;
         using pointer = const Virus*;
         using reference = const Virus&;
         using iterator_category = std::bidirectional_iterator_tag;
+
+        children_iterator() : iter() { };
+        children_iterator(viral_map_it_type const &iter) : iter(iter) { };
 
         const Virus& operator*() const {
             return iter->second->virus;
