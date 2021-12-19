@@ -149,79 +149,44 @@ public:
     };
 
     VirusGenealogy(typename Virus::id_type const &stem_id) {
-        try {
-            stem_node = std::make_shared<Node>(stem_id);
-            viral_map.insert({stem_id, std::shared_ptr(stem_node)});
-        }
-        catch (...) {
-            throw;
-        }
+        stem_node = std::make_shared<Node>(stem_id);
+        viral_map.insert({stem_id, std::shared_ptr(stem_node)});
     };
 
     typename Virus::id_type get_stem_id() const {
-        try {
-            return stem_node->virus.get_id();
-        }
-        catch (...) {
-            throw;
-        }
+        return stem_node->virus.get_id();
     };
 
     VirusGenealogy<Virus>::children_iterator get_children_begin(typename Virus::id_type const &id) const {
-        try {
-            if (!exists(id)) {
-                throw VirusNotFound();
-            }
-            return children_iterator(viral_map.at(id)->children.begin());
+        if (!exists(id)) {
+            throw VirusNotFound();
         }
-        catch (...) {
-            throw;
-        }
+        return children_iterator(viral_map.at(id)->children.begin());
     };
 
     VirusGenealogy<Virus>::children_iterator get_children_end(typename Virus::id_type const &id) const {
-        try {
-            if (!exists(id)) {
-                throw VirusNotFound();
-            }
-            return children_iterator(viral_map.at(id)->children.end());
+        if (!exists(id)) {
+            throw VirusNotFound();
         }
-        catch (...) {
-            throw;
-        }
+        return children_iterator(viral_map.at(id)->children.end());
     };
 
     std::vector<typename Virus::id_type> get_parents(typename Virus::id_type const &id) const {
-        try {
-            if (!exists(id)) {
-                throw VirusNotFound();
-            }
-            return viral_map.at(id)->parents_vector();
+        if (!exists(id)) {
+            throw VirusNotFound();
         }
-        catch (...) {
-            throw;
-        }
+        return viral_map.at(id)->parents_vector();
     };
 
     bool exists(typename Virus::id_type const &id) const {
-        try {
-            return viral_map.contains(id);
-        }
-        catch (...) {
-            throw;
-        }
+        return viral_map.contains(id);
     };
 
     const Virus& operator[](typename Virus::id_type const &id) const {
-        try {
-            if (!exists(id)) {
-                throw VirusNotFound();
-            }
-            return viral_map.at(id)->virus;
+        if (!exists(id)) {
+            throw VirusNotFound();
         }
-        catch (...) {
-            throw;
-        }
+        return viral_map.at(id)->virus;
     };
 
     void create(typename Virus::id_type const &id, typename Virus::id_type const &parent_id) {
@@ -269,10 +234,6 @@ public:
         std::vector<std::pair<std::shared_ptr<Node>, map_insert_return_type>> parents_insert_registry;
         parents_insert_registry.reserve(parent_ids.size());
 
-        if (parent_ids.empty()) {
-            return;
-        }
-
         try {
             if (exists(id)) {
                 throw VirusAlreadyCreated();
@@ -281,6 +242,10 @@ public:
                 if (!exists(parent)) {
                     throw VirusNotFound();
                 }
+            }
+
+            if (parent_ids.empty()) {
+                return;
             }
 
             new_virus = std::make_shared<Node>(id);
@@ -347,6 +312,10 @@ public:
     };
 
     void remove(typename Virus::id_type const &id) {
+        std::vector<viral_map_it_type> to_be_erased;
+        std::multimap<std::shared_ptr<Node>, viral_set_it_type> erased_children;
+        std::map<std::shared_ptr<Node>, viral_map_it_type> erased_parents;
+
         if (!exists(id)) {
             throw VirusNotFound();
         }
@@ -354,27 +323,18 @@ public:
             throw TriedToRemoveStemVirus();
         }
 
-        try {
-            std::vector<viral_map_it_type> to_be_erased;
-            std::multimap<std::shared_ptr<Node>, viral_set_it_type> erased_children;
-            std::map<std::shared_ptr<Node>, viral_map_it_type> erased_parents;
-            add_erased(to_be_erased, erased_parents, erased_children, id);
+        add_erased(to_be_erased, erased_parents, erased_children, id);
 
-            for (auto child : erased_children) {
-                child.first->parents.erase(child.second);
-            }
-
-            for (auto parent : erased_parents) {
-                parent.first->children.erase(parent.second);
-            }
-
-            for (auto erase_from_map : to_be_erased) {
-                viral_map.erase(erase_from_map);
-            }
-            return;
+        for (auto child : erased_children) {
+            child.first->parents.erase(child.second);
         }
-        catch (...) {
-            throw;
+
+        for (auto parent : erased_parents) {
+            parent.first->children.erase(parent.second);
+        }
+
+        for (auto erase_from_map : to_be_erased) {
+            viral_map.erase(erase_from_map);
         }
     };
 };
