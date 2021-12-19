@@ -94,6 +94,7 @@ private:
 
 public:
     VirusGenealogy<Virus>& operator=(const VirusGenealogy<Virus>&) = delete;
+    VirusGenealogy<Virus>& operator=(VirusGenealogy<Virus>&&) = delete;
     VirusGenealogy<Virus>(const VirusGenealogy<Virus>&) = delete;
 
     class children_iterator {
