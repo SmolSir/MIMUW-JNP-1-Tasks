@@ -3,9 +3,27 @@
 
 using coordinate_t = int;
 
+class Coordinates {
+public:
+    Coordinates() = delete;
+    Coordinates(coordinate_t x, coordinate_t y) : _x(x), _y(y) {}
+
+    friend std::ostream &operator<<(std::ostream &os, const Coordinates &c) {
+        os << "(" << c._x << ", " << c._y << ")";
+        return os;
+    }
+
+private:
+    coordinate_t _x;
+    coordinate_t _y;
+};
+
 class Sensor {
 public:
-    virtual bool is_safe([[maybe_unused]] coordinate_t x, [[maybe_unused]] coordinate_t y) = 0;
+    Sensor() = default;
+    virtual ~Sensor() = default;
+
+    virtual bool is_safe(coordinate_t x, coordinate_t y) = 0;
 };
 
 enum class Direction {WEST, EAST, SOUTH, NORTH};
@@ -45,7 +63,7 @@ public:
 
     void land(std::pair<coordinate_t, coordinate_t>, Direction d);
 
-    inline friend std::ostream &operator<<(std::ostream &o, const Rover &r);
+    friend std::ostream &operator<<(std::ostream &os, const Rover &r);
 
 };
 
