@@ -8,12 +8,7 @@ public:
     virtual bool is_safe([[maybe_unused]] coordinate_t x, [[maybe_unused]] coordinate_t y) = 0;
 };
 
-class Direction {
-public:
-    static int WEST;
-    static int EAST;
-};
-
+enum class Direction {WEST, EAST, SOUTH, NORTH};
 
 class Operation {
     virtual void run();
@@ -48,7 +43,7 @@ class Rover {
 public:
     void execute(const std::string &s);
 
-    void land(std::pair<coordinate_t, coordinate_t>, int);
+    void land(std::pair<coordinate_t, coordinate_t>, Direction d);
 
     inline friend std::ostream &operator<<(std::ostream &o, const Rover &r);
 
