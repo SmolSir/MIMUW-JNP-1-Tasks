@@ -5,12 +5,44 @@
 
 using coordinate_t = int;
 
-enum class Direction {WEST, EAST, SOUTH, NORTH};
+class DirectionUtil {
+public:
+    constexpr DirectionUtil() = default;
+};
+
+class WestDirection : public DirectionUtil {
+public:
+    constexpr WestDirection() = default;
+};
+
+class EastDirection : public DirectionUtil {
+public:
+    constexpr EastDirection() = default;
+};
+
+class SouthDirection : public DirectionUtil {
+public:
+    constexpr SouthDirection() = default;
+};
+
+class NorthDirection : public DirectionUtil {
+public:
+    constexpr NorthDirection() = default;
+};
+
+class Direction {
+public:
+    Direction() = default;
+    constexpr static DirectionUtil WEST = WestDirection();
+    constexpr static DirectionUtil EAST = EastDirection();
+    constexpr static DirectionUtil SOUTH = SouthDirection();
+    constexpr static DirectionUtil NORTH = NorthDirection();
+};
 
 class Position {
 public:
     Position() = delete;
-    Position(coordinate_t x, coordinate_t y, Direction d) : _x(x), _y(y), _d(d){}
+    Position(coordinate_t x, coordinate_t y, DirectionUtil d) : _x(x), _y(y), _d(d){}
 
     friend std::ostream &operator<<(std::ostream &os, const Position &c) {
         os << "(" << c._x << ", " << c._y << ")" << " " << "TO DO (Direction)";
@@ -20,7 +52,7 @@ public:
 private:
     coordinate_t _x;
     coordinate_t _y;
-    Direction _d;
+    DirectionUtil _d;
 };
 
 class Sensor {
@@ -106,7 +138,7 @@ public:
     Rover() = default;
     void execute(const std::string &s) {}
 
-    void land(std::pair<coordinate_t, coordinate_t>, Direction d) {}
+    void land(std::pair<coordinate_t, coordinate_t> coordinates, DirectionUtil d) {}
 
     friend std::ostream &operator<<(std::ostream &os, const Rover &r) {
         return os;
@@ -119,7 +151,7 @@ class RoverBuilder {
 public:
     RoverBuilder() = default;
 
-    RoverBuilder& program_command(char, std::shared_ptr<Command> &o) {
+    RoverBuilder& program_command(char, std::shared_ptr<Command> o) {
         return *this;
     }
 
