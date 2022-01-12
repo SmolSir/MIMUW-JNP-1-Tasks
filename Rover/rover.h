@@ -1,60 +1,81 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "cert-err58-cpp"
 #ifndef ROVER_ROVER_H
 #define ROVER_ROVER_H
 
 #include <vector>
+#include <string>
+#include <unordered_map>
+
+#define DIRECTION_CNT 4
 
 using coordinate_t = int;
 
-class DirectionUtil {
-public:
-    constexpr DirectionUtil() = default;
-};
-
-class WestDirection : public DirectionUtil {
-public:
-    constexpr WestDirection() = default;
-};
-
-class EastDirection : public DirectionUtil {
-public:
-    constexpr EastDirection() = default;
-};
-
-class SouthDirection : public DirectionUtil {
-public:
-    constexpr SouthDirection() = default;
-};
-
-class NorthDirection : public DirectionUtil {
-public:
-    constexpr NorthDirection() = default;
-};
-
-class Direction {
-public:
-    Direction() = default;
-    constexpr static DirectionUtil WEST = WestDirection();
-    constexpr static DirectionUtil EAST = EastDirection();
-    constexpr static DirectionUtil SOUTH = SouthDirection();
-    constexpr static DirectionUtil NORTH = NorthDirection();
-};
+// Classes
+class Position;
+enum class Direction;
+class Rover;
+class Sensor;
+class RoverBuilder;
+class Command;
 
 class Position {
 public:
-    Position() = delete;
-    Position(coordinate_t x, coordinate_t y, DirectionUtil d) : _x(x), _y(y), _d(d){}
+    Position() = default;
+    Position(coordinate_t x, coordinate_t y) : _x(x), _y(y) {}
 
-    friend std::ostream &operator<<(std::ostream &os, const Position &c) {
-        os << "(" << c._x << ", " << c._y << ")" << " " << "TO DO (Direction)";
+    friend std::ostream &operator<<(std::ostream &os, const Position &pos) {
+        os << "(" << pos._x << ", " << pos._y << ")";
         return os;
     }
 
-private:
+    constexpr Position& operator+= (const Position& rhs) {
+        _x += rhs._x;
+        _y += rhs._y;
+        return *this;
+    }
+    constexpr Position& operator-= (const Position& rhs) {
+        _x -= rhs._x;
+        _y -= rhs._y;
+        return *this;
+    }
+
     coordinate_t _x;
     coordinate_t _y;
-    DirectionUtil _d;
 };
 
+// North is zero, then incrementing in order of the wind rose clockwise.
+// Notice that for move_back
+enum class Direction : int {
+    NORTH = 0,
+    EAST  = 1,
+    SOUTH = 2,
+    WEST  = 3
+};
+
+// String aliases for our Direction codes.
+static inline const std::string Direction_names[DIRECTION_CNT] = {
+    "NORTH",
+    "EAST",
+    "SOUTH",
+    "WEST"
+};
+
+// We will add and subtract these values to our rover's current position to move
+// accordingly forward and backward, choosing the vector based of our direction code.
+static inline const Position move_vector[DIRECTION_CNT] = {
+    Position( 0,  1),
+    Position( 1,  0),
+    Position( 0, -1),
+    Position(-1,  0)
+};
+
+class Command {
+public:
+    virtual bool run(Rover* rover) = 0; // operation failed - false, otherwise true
+};
+
+// TODO
 class Sensor {
 public:
     Sensor() = default;
@@ -63,9 +84,52 @@ public:
     virtual bool is_safe(coordinate_t x, coordinate_t y) = 0;
 };
 
-class Command {
+class Rover {
 public:
-    virtual void run() = 0;
+    Rover() = default;
+
+    void execute(const std::string &s) {
+        if (!_land) {
+            throw std::logic_error("Rover has not landed.");
+        }
+
+        _stop = false;
+        for (auto _command_name : s) {
+            if (!_commands.contains(_command_name) ||
+                !_commands[_command_name]->run(this))
+            {
+                _stop = true;
+                return;
+            }
+        }
+    }
+
+    void land(std::pair<coordinate_t, coordinate_t> coordinates, Direction direction) {
+        _land = true;
+        _position = Position(coordinates.first, coordinates.second);
+        _direction = static_cast<int>(direction);
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, const Rover &rover) {
+        if (!rover._land) {
+            os << "unknown\n";
+        }
+        else {
+            os << rover._position << " " << Direction_names[rover._direction]
+               << (rover._stop ? " stopped\n" : "\n");
+        }
+        return os;
+    }
+
+    Position _position;
+    int _direction;
+
+private:
+    std::unordered_map<char, std::shared_ptr<Command>> _commands;
+    std::vector<std::unique_ptr<Sensor>> _sensors;
+    bool _build = false;
+    bool _land = false;
+    bool _stop = false;
 };
 
 // TODO
@@ -73,40 +137,60 @@ class MoveForward : public Command {
 public:
     MoveForward() = default;
 
-    void run() override {}
+    bool run(Rover* rover) override {
+        // if (!rover.sensor_stuff) return false;
+        (*rover)._position += move_vector[rover->_direction];
+        return true;
+    }
 };
 
 // TODO
 class MoveBackward : public Command {
 public:
     MoveBackward() = default;
-    void run() override {}
+    bool run(Rover* rover) override {
+        // if (!rover.sensor_stuff) return false;
+        (*rover)._position -= move_vector[rover->_direction];
+        return true;
+    }
 };
 
-// TODO
+
 class RotateRight : public Command {
 public:
     RotateRight() = default;
-    void run() override {}
+    bool run(Rover* rover) override {
+        (*rover)._direction = (rover->_direction + 1) % 4;
+        return true;
+    }
 };
 
-// TODO
+
 class RotateLeft : public Command {
 public:
     RotateLeft() = default;
-    void run() override {}
+    bool run(Rover* rover) override {
+        (*rover)._direction = (rover->_direction + 3) % 4; // + 4 - 1 = 3
+        return true;
+    }
 };
 
-// TODO
 class Compose : public Command {
 public:
     Compose(std::initializer_list<std::shared_ptr<Command>> list) {
-        for (const auto & it : list) {
+        for (const auto& it : list) {
             _commands.push_back(it);
         }
     }
 
-    void run() override {}
+    bool run(Rover* rover) override {
+        for (const auto& _command : _commands) {
+            if (!_command->run(rover)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
 private:
     std::vector<std::shared_ptr<Command>> _commands;
@@ -132,30 +216,16 @@ std::shared_ptr<Compose> compose(std::initializer_list<std::shared_ptr<Command>>
     return std::make_shared<Compose>(list);
 }
 
-//TO DO
-class Rover {
-public:
-    Rover() = default;
-    void execute(const std::string &s) {}
-
-    void land(std::pair<coordinate_t, coordinate_t> coordinates, DirectionUtil d) {}
-
-    friend std::ostream &operator<<(std::ostream &os, const Rover &r) {
-        return os;
-    }
-
-};
-
 // TODO
 class RoverBuilder {
 public:
     RoverBuilder() = default;
 
-    RoverBuilder& program_command(char, std::shared_ptr<Command> o) {
+    RoverBuilder& program_command(char c, const std::shared_ptr<Command>& command) {
         return *this;
     }
 
-    RoverBuilder& add_sensor(std::unique_ptr<Sensor> s) {
+    RoverBuilder& add_sensor(std::unique_ptr<Sensor> sensor) {
         return *this;
     }
 
@@ -165,3 +235,5 @@ public:
 };
 
 #endif //ROVER_ROVER_H
+
+#pragma clang diagnostic pop
