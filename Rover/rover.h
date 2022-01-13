@@ -1,11 +1,13 @@
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "cert-err58-cpp"
+//#pragma clang diagnostic push
+//#pragma ide diagnostic ignored "cert-err58-cpp"
 #ifndef ROVER_ROVER_H
 #define ROVER_ROVER_H
 
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <ostream>
+#include <memory>
 
 #define DIRECTION_CNT 4
 
@@ -98,6 +100,8 @@ public:
     Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands, std::vector<std::shared_ptr<Sensor>> &sensors) {
         _commands = commands;
         _sensors = sensors;
+        _land = false;
+        _stop = false;
     }
 
     void execute(const std::string &s) {
@@ -117,6 +121,9 @@ public:
     }
 
     void land(std::pair<coordinate_t, coordinate_t> coordinates, Direction direction) {
+        if (_land)
+            throw std::logic_error("Rover has already landed.");
+
         _land = true;
         _position = Position(coordinates.first, coordinates.second);
         _direction = static_cast<int>(direction);
@@ -266,4 +273,4 @@ private:
 
 #endif //ROVER_ROVER_H
 
-#pragma clang diagnostic pop
+//#pragma clang diagnostic pop
