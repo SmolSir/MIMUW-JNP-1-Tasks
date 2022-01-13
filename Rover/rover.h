@@ -53,7 +53,7 @@ public:
     RoverBuilder() = default;
 
     RoverBuilder& program_command(char c, const std::shared_ptr<Command>& command) {
-        _commands.insert({c, command});
+        _commands[c] = command;
         return *this;
     }
 
@@ -75,6 +75,7 @@ private:
 
 class Command {
 public:
+    virtual ~Command() = default;
     virtual bool run(Rover &rover) = 0; // operation failed - false, otherwise true
 };
 
@@ -193,9 +194,6 @@ void Rover::execute(const std::string &s) {
 }
 
 void Rover::land(std::pair<coordinate_t, coordinate_t> coordinates, Direction direction) {
-    if (_land)
-        throw std::logic_error("Rover has already landed.");
-
     _land = true;
     _position = Position(coordinates.first, coordinates.second);
     _direction = static_cast<int>(direction);
