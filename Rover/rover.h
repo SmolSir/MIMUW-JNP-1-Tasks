@@ -9,83 +9,9 @@
 #include <ostream>
 #include <memory>
 
-#define DIRECTION_CNT 4
+#include "positioning.h"
 
-using coordinate_t = int;
 
-// Classes
-class Position;
-enum class Direction;
-class Rover;
-class Sensor;
-class RoverBuilder;
-class Command;
-
-class Position {
-public:
-    Position() = default;
-    Position(coordinate_t x, coordinate_t y) : _x(x), _y(y) {}
-
-    friend std::ostream &operator<<(std::ostream &os, const Position &pos) {
-        os << "(" << pos._x << ", " << pos._y << ")";
-        return os;
-    }
-
-    constexpr Position operator+ (const Position& rhs) {
-        return Position(*this) += rhs;
-    }
-
-    constexpr Position operator- (const Position& rhs) {
-        return Position(*this) -= rhs;
-    }
-
-    constexpr Position& operator+= (const Position& rhs) {
-        _x += rhs._x;
-        _y += rhs._y;
-        return *this;
-    }
-    constexpr Position& operator-= (const Position& rhs) {
-        _x -= rhs._x;
-        _y -= rhs._y;
-        return *this;
-    }
-
-    coordinate_t _x;
-    coordinate_t _y;
-};
-
-// North is zero, then incrementing in order of the wind rose clockwise.
-// Notice that for move_back
-enum class Direction : int {
-    NORTH = 0,
-    EAST  = 1,
-    SOUTH = 2,
-    WEST  = 3
-};
-
-// String aliases for our Direction codes.
-static inline const std::string Direction_names[DIRECTION_CNT] = {
-    "NORTH",
-    "EAST",
-    "SOUTH",
-    "WEST"
-};
-
-// We will add and subtract these values to our rover's current position to move
-// accordingly forward and backward, choosing the vector based of our direction code.
-static inline const Position move_vector[DIRECTION_CNT] = {
-    Position( 0,  1),
-    Position( 1,  0),
-    Position( 0, -1),
-    Position(-1,  0)
-};
-
-class Command {
-public:
-    virtual bool run(Rover* rover) = 0; // operation failed - false, otherwise true
-};
-
-// TODO
 class Sensor {
 public:
     Sensor() = default;
@@ -94,59 +20,22 @@ public:
     virtual bool is_safe(coordinate_t x, coordinate_t y) = 0;
 };
 
+
+class Command;
+
 class Rover {
 public:
     Rover() = default;
-    Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands, std::vector<std::shared_ptr<Sensor>> &sensors) {
-        _commands = commands;
-        _sensors = sensors;
-        _land = false;
-        _stop = false;
-    }
+    Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands,
+          std::vector<std::shared_ptr<Sensor>> &sensors);
 
-    void execute(const std::string &s) {
-        if (!_land) {
-            throw std::logic_error("Rover has not landed.");
-        }
+    void execute(const std::string &s);
 
-        _stop = false;
-        for (auto _command_name : s) {
-            if (!_commands.contains(_command_name) ||
-                !_commands[_command_name]->run(this))
-            {
-                _stop = true;
-                return;
-            }
-        }
-    }
+    void land(std::pair<coordinate_t, coordinate_t> coordinates, Direction direction);
 
-    void land(std::pair<coordinate_t, coordinate_t> coordinates, Direction direction) {
-        if (_land)
-            throw std::logic_error("Rover has already landed.");
+    bool check_position(Position &to_check);
 
-        _land = true;
-        _position = Position(coordinates.first, coordinates.second);
-        _direction = static_cast<int>(direction);
-    }
-
-    friend std::ostream &operator<<(std::ostream &os, const Rover &rover) {
-        if (!rover._land) {
-            os << "unknown";
-        }
-        else {
-            os << rover._position << " " << Direction_names[rover._direction]
-               << (rover._stop ? " stopped" : "");
-        }
-        return os;
-    }
-
-    bool check_position(Position &to_check) {
-        bool good = true;
-        for (auto &s : _sensors) {
-            good &= s->is_safe(to_check._x, to_check._y);
-        }
-        return good;
-    }
+    friend std::ostream &operator<<(std::ostream &os, const Rover &rover);
 
     Position _position;
     int _direction;
@@ -158,29 +47,60 @@ private:
     bool _stop = false;
 };
 
-// TODO
+
+class RoverBuilder {
+public:
+    RoverBuilder() = default;
+
+    RoverBuilder& program_command(char c, const std::shared_ptr<Command>& command) {
+        _commands.insert({c, command});
+        return *this;
+    }
+
+    RoverBuilder& add_sensor(std::unique_ptr<Sensor> &&sensor) {
+        std::shared_ptr<Sensor> temp = std::move(sensor);
+        _sensors.push_back(temp);
+        return *this;
+    }
+
+    Rover build() {
+        return Rover{_commands, _sensors};
+    }
+
+private:
+    std::unordered_map<char, std::shared_ptr<Command>> _commands;
+    std::vector<std::shared_ptr<Sensor>> _sensors;
+};
+
+
+class Command {
+public:
+    virtual bool run(Rover &rover) = 0; // operation failed - false, otherwise true
+};
+
+
 class MoveForward : public Command {
 public:
     MoveForward() = default;
 
-    bool run(Rover* rover) override {
-        Position new_position = (*rover)._position + move_vector[rover->_direction];
-        if (!rover->check_position(new_position))
+    bool run(Rover &rover) override {
+        Position new_position = rover._position + move_vector[rover._direction];
+        if (!rover.check_position(new_position))
             return false;
-        (*rover)._position = new_position;
+        rover._position = new_position;
         return true;
     }
 };
 
-// TODO
+
 class MoveBackward : public Command {
 public:
     MoveBackward() = default;
-    bool run(Rover* rover) override {
-        Position new_position = (*rover)._position - move_vector[rover->_direction];
-        if (!rover->check_position(new_position))
+    bool run(Rover &rover) override {
+        Position new_position = rover._position - move_vector[rover._direction];
+        if (!rover.check_position(new_position))
             return false;
-        (*rover)._position = new_position;
+        rover._position = new_position;
         return true;
     }
 };
@@ -189,8 +109,8 @@ public:
 class RotateRight : public Command {
 public:
     RotateRight() = default;
-    bool run(Rover* rover) override {
-        (*rover)._direction = (rover->_direction + 1) % 4;
+    bool run(Rover &rover) override {
+        rover._direction = (rover._direction + 1) % 4;
         return true;
     }
 };
@@ -199,8 +119,8 @@ public:
 class RotateLeft : public Command {
 public:
     RotateLeft() = default;
-    bool run(Rover* rover) override {
-        (*rover)._direction = (rover->_direction + 3) % 4; // + 4 - 1 = 3
+    bool run(Rover &rover) override {
+        rover._direction = (rover._direction + 3) % 4; // + 4 - 1 = 3
         return true;
     }
 };
@@ -213,7 +133,7 @@ public:
         }
     }
 
-    bool run(Rover* rover) override {
+    bool run(Rover &rover) override {
         for (const auto& _command : _commands) {
             if (!_command->run(rover)) {
                 return false;
@@ -246,30 +166,59 @@ std::shared_ptr<Compose> compose(std::initializer_list<std::shared_ptr<Command>>
     return std::make_shared<Compose>(list);
 }
 
-// TODO
-class RoverBuilder {
-public:
-    RoverBuilder() = default;
 
-    RoverBuilder& program_command(char c, const std::shared_ptr<Command>& command) {
-        _commands.insert({c, command});
-        return *this;
+Rover::Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands,
+             std::vector<std::shared_ptr<Sensor>> &sensors)
+{
+    _commands = commands;
+    _sensors = sensors;
+    _land = false;
+    _stop = false;
+}
+
+void Rover::execute(const std::string &s) {
+    if (!_land) {
+        throw std::logic_error("Rover has not landed.");
     }
 
-    RoverBuilder& add_sensor(std::unique_ptr<Sensor> &&sensor) {
-        std::shared_ptr<Sensor> temp = std::move(sensor);
-        _sensors.push_back(temp);
-        return *this;
+    _stop = false;
+    for (auto _command_name : s) {
+        if (!_commands.contains(_command_name) ||
+            !_commands[_command_name]->run(*this))
+        {
+            _stop = true;
+            return;
+        }
     }
+}
 
-    Rover build() {
-        return Rover(_commands, _sensors);
+void Rover::land(std::pair<coordinate_t, coordinate_t> coordinates, Direction direction) {
+    if (_land)
+        throw std::logic_error("Rover has already landed.");
+
+    _land = true;
+    _position = Position(coordinates.first, coordinates.second);
+    _direction = static_cast<int>(direction);
+}
+
+bool Rover::check_position(Position &to_check) {
+    bool good = true;
+    for (auto &s : _sensors) {
+        good &= s->is_safe(to_check._x, to_check._y);
     }
+    return good;
+}
 
-private:
-    std::unordered_map<char, std::shared_ptr<Command>> _commands;
-    std::vector<std::shared_ptr<Sensor>> _sensors;
-};
+std::ostream &operator<<(std::ostream &os, const Rover &rover) {
+    if (!rover._land) {
+        os << "unknown";
+    }
+    else {
+        os << rover._position << " " << Direction_names[rover._direction]
+           << (rover._stop ? " stopped" : "");
+    }
+    return os;
+}
 
 #endif //ROVER_ROVER_H
 
