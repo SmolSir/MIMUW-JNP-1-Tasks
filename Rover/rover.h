@@ -14,7 +14,7 @@
 
 class Sensor {
 public:
-    Sensor() = default;
+    constexpr Sensor() = default;
     virtual ~Sensor() = default;
 
     virtual bool is_safe(coordinate_t x, coordinate_t y) = 0;
@@ -25,7 +25,7 @@ class Command;
 
 class Rover {
 public:
-    Rover() = default;
+    Rover() = delete;
     Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands,
           std::vector<std::shared_ptr<Sensor>> &sensors);
 
@@ -37,12 +37,16 @@ public:
 
     friend std::ostream &operator<<(std::ostream &os, const Rover &rover);
 
-    Position _position;
-    int _direction;
+    Position & get_position();
+    void set_position(Position &new_position);
+    int get_direction() const;
+    void set_direction(int new_direction);
 
 private:
     std::unordered_map<char, std::shared_ptr<Command>> _commands;
     std::vector<std::shared_ptr<Sensor>> _sensors;
+    Position _position;
+    int _direction;
     bool _land = false;
     bool _stop = false;
 };
@@ -85,10 +89,10 @@ public:
     MoveForward() = default;
 
     bool run(Rover &rover) override {
-        Position new_position = rover._position + move_vector[rover._direction];
+        Position new_position = rover.get_position() + move_vector[rover.get_direction()];
         if (!rover.check_position(new_position))
             return false;
-        rover._position = new_position;
+        rover.set_position(new_position);
         return true;
     }
 };
@@ -98,10 +102,10 @@ class MoveBackward : public Command {
 public:
     MoveBackward() = default;
     bool run(Rover &rover) override {
-        Position new_position = rover._position - move_vector[rover._direction];
+        Position new_position = rover.get_position() - move_vector[rover.get_direction()];
         if (!rover.check_position(new_position))
             return false;
-        rover._position = new_position;
+        rover.set_position(new_position);
         return true;
     }
 };
@@ -111,7 +115,7 @@ class RotateRight : public Command {
 public:
     RotateRight() = default;
     bool run(Rover &rover) override {
-        rover._direction = (rover._direction + 1) % 4;
+        rover.set_direction((rover.get_direction() + 1) % 4);
         return true;
     }
 };
@@ -121,7 +125,7 @@ class RotateLeft : public Command {
 public:
     RotateLeft() = default;
     bool run(Rover &rover) override {
-        rover._direction = (rover._direction + 3) % 4; // + 4 - 1 = 3
+        rover.set_direction((rover.get_direction() + 3) % 4); // + 4 - 1 = 3
         return true;
     }
 };
@@ -216,6 +220,20 @@ std::ostream &operator<<(std::ostream &os, const Rover &rover) {
            << (rover._stop ? " stopped" : "");
     }
     return os;
+}
+
+Position & Rover::get_position() {
+    return _position;
+}
+void Rover::set_position(Position &new_position) {
+   _position = new_position;
+}
+int Rover::get_direction() const {
+    return _direction;
+}
+
+void Rover::set_direction(int new_direction) {
+    _direction = new_direction;
 }
 
 #endif //ROVER_ROVER_H
