@@ -173,13 +173,13 @@ std::shared_ptr<Compose> compose(std::initializer_list<std::shared_ptr<Command>>
 
 
 Rover::Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands,
-             std::vector<std::shared_ptr<Sensor>> &sensors)
-{
-    _commands = commands;
-    _sensors = sensors;
-    _land = false;
-    _stop = false;
-}
+             std::vector<std::shared_ptr<Sensor>> &sensors) :
+    _commands(commands),
+    _sensors(sensors),
+    _position(0, 0),
+    _direction(static_cast<int>(Direction::NORTH)),
+    _land(false),
+    _stop(false) {}
 
 void Rover::execute(const std::string &s) {
     if (!_land) {
@@ -199,6 +199,7 @@ void Rover::execute(const std::string &s) {
 
 void Rover::land(std::pair<coordinate_t, coordinate_t> coordinates, Direction direction) {
     _land = true;
+    _stop = false;
     _position = Position(coordinates.first, coordinates.second);
     _direction = static_cast<int>(direction);
 }
@@ -206,7 +207,7 @@ void Rover::land(std::pair<coordinate_t, coordinate_t> coordinates, Direction di
 bool Rover::check_position(Position &to_check) {
     bool good = true;
     for (auto &s : _sensors) {
-        good &= s->is_safe(to_check._x, to_check._y);
+        good &= s->is_safe(to_check.get_x(), to_check.get_y());
     }
     return good;
 }
