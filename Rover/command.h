@@ -1,10 +1,13 @@
 #ifndef ROVER_COMMAND_H
 #define ROVER_COMMAND_H
 
+#include <initializer_list>
+#include <memory>
 #include <vector>
 
 #include "rover_management.h"
 #include "positioning.h"
+
 
 class Command {
 public:
@@ -12,6 +15,8 @@ public:
 
     virtual bool run(RoverManagement &rover) = 0; // operation failed - false, otherwise true
 };
+
+using command_ptr = std::shared_ptr<Command>;
 
 class MoveForward : public Command {
 public:
@@ -55,7 +60,7 @@ public:
 
 class Compose : public Command {
 public:
-    Compose(std::initializer_list<std::shared_ptr<Command>> list) {
+    Compose(std::initializer_list<command_ptr> list) {
         for (const auto &it: list)
             _commands.emplace_back(it);
     }
@@ -69,7 +74,7 @@ public:
     }
 
 private:
-    std::vector<std::shared_ptr<Command>> _commands;
+    std::vector<command_ptr> _commands;
 };
 
 #endif //ROVER_COMMAND_H

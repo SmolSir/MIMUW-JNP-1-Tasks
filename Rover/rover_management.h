@@ -2,6 +2,8 @@
 #define ROVER_ROVER_MANAGEMENT_H
 
 #include <memory>
+#include <vector>
+
 #include "positioning.h"
 #include "sensor.h"
 

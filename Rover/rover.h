@@ -1,11 +1,13 @@
 #ifndef ROVER_ROVER_H
 #define ROVER_ROVER_H
 
-#include <vector>
+#include <initializer_list>
+#include <memory>
+#include <ostream>
 #include <string>
 #include <unordered_map>
-#include <ostream>
-#include <memory>
+#include <utility>
+#include <vector>
 
 #include "command.h"
 #include "positioning.h"
@@ -29,12 +31,12 @@ public:
     friend class RoverBuilder;
 
 private:
-    std::unordered_map<char, std::shared_ptr<Command>> _commands;
+    std::unordered_map<char, command_ptr> _commands;
     bool _has_landed = false;
     bool _has_stopped = false;
     RoverManagement rover_management;
 
-    Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands,
+    Rover(std::unordered_map<char, command_ptr> &commands,
           std::vector<std::shared_ptr<Sensor>> &sensors);
 };
 
@@ -42,16 +44,16 @@ class RoverBuilder {
 public:
     RoverBuilder() = default;
 
-    RoverBuilder &program_command(char c, const std::shared_ptr<Command> &command);
+    RoverBuilder &program_command(char c, command_ptr command);
     RoverBuilder &add_sensor(std::unique_ptr<Sensor> sensor);
     Rover build();
 
 private:
-    std::unordered_map<char, std::shared_ptr<Command>> _commands;
+    std::unordered_map<char, command_ptr> _commands;
     std::vector<std::shared_ptr<Sensor>> _sensors;
 };
 
-Rover::Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands,
+Rover::Rover(std::unordered_map<char, command_ptr> &commands,
              std::vector<std::shared_ptr<Sensor>> &sensors) :
         _commands(commands),
         _has_landed(false),
@@ -108,12 +110,12 @@ std::shared_ptr<RotateLeft> rotate_left() {
     return std::make_shared<RotateLeft>();
 }
 
-std::shared_ptr<Compose> compose(std::initializer_list<std::shared_ptr<Command>> list) {
+std::shared_ptr<Compose> compose(std::initializer_list<command_ptr> list) {
     return std::make_shared<Compose>(list);
 }
 
-RoverBuilder &RoverBuilder::program_command(char c, const std::shared_ptr<Command> &command) {
-    _commands[c] = command;
+RoverBuilder &RoverBuilder::program_command(char c, command_ptr command) {
+    _commands[c] = std::move(command);
     return *this;
 }
 
