@@ -37,8 +37,10 @@ public:
 private:
     std::unordered_map<char, std::shared_ptr<Command>> _commands;
     std::vector<std::shared_ptr<Sensor>> _sensors;
+
     Position _position;
     Direction _direction;
+
     bool _land = false;
     bool _stop = false;
 
@@ -52,12 +54,16 @@ public:
 
     bool move(Position &new_position, Direction new_direction);
     Position &get_position();
-    int get_direction() const;
+    int get_direction_int();
+    Direction get_direction();
+
     friend class Rover;
 
 private:
     Rover &_r;
-    RoverManagement(Rover &r) : _r(r) {}
+
+    explicit RoverManagement(Rover &r) : _r(r) {}
+
     bool check_position(Position &to_check);
 };
 
@@ -99,8 +105,8 @@ public:
     MoveForward() = default;
 
     bool run(RoverManagement &rover) override {
-        Position new_position = rover.get_position() + move_vector[rover.get_direction()];
-        return rover.move(new_position, Direction(rover.get_direction()));
+        Position new_position = rover.get_position() + move_vector[rover.get_direction_int()];
+        return rover.move(new_position, rover.get_direction());
     }
 };
 
@@ -110,8 +116,8 @@ public:
     MoveBackward() = default;
 
     bool run(RoverManagement &rover) override {
-        Position new_position = rover.get_position() - move_vector[rover.get_direction()];
-        return rover.move(new_position, Direction(rover.get_direction()));
+        Position new_position = rover.get_position() - move_vector[rover.get_direction_int()];
+        return rover.move(new_position, rover.get_direction());
     }
 };
 
@@ -121,7 +127,7 @@ public:
     RotateRight() = default;
 
     bool run(RoverManagement &rover) override {
-        return rover.move(rover.get_position(), Direction((rover.get_direction() + 1) % 4));
+        return rover.move(rover.get_position(), Direction((rover.get_direction_int() + 1) % 4));
     }
 };
 
@@ -131,7 +137,7 @@ public:
     RotateLeft() = default;
 
     bool run(RoverManagement &rover) override {
-        return rover.move(rover.get_position(), Direction((rover.get_direction() + 3) % 4));; // + 4 - 1 = 3
+        return rover.move(rover.get_position(), Direction((rover.get_direction_int() + 3) % 4)); // + 4 - 1 = 3
     }
 };
 
@@ -245,8 +251,12 @@ Position &RoverManagement::get_position() {
     return _r._position;
 }
 
-int RoverManagement::get_direction() const {
+int RoverManagement::get_direction_int() {
     return static_cast<int>(_r._direction);
+}
+
+Direction RoverManagement::get_direction() {
+    return _r._direction;
 }
 
 #endif //ROVER_ROVER_H
