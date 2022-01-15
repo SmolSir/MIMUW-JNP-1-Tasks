@@ -29,37 +29,12 @@ public:
     Position() = delete;
     constexpr Position(coordinate_t x, coordinate_t y) noexcept : _x(x), _y(y) {}
 
-    friend std::ostream &operator<<(std::ostream &os, const Position &pos) {
-        os << "(" << pos._x << ", " << pos._y << ")";
-        return os;
-    }
+    constexpr Position operator+ (const Position& rhs) const;
+    constexpr Position operator- (const Position& rhs) const;
+    constexpr coordinate_t get_x() const;
+    constexpr coordinate_t get_y() const;
 
-    constexpr Position operator+ (const Position& rhs) const {
-        auto new_position = Position(*this);
-        new_position._x += rhs._x;
-        new_position._y += rhs._y;
-        return new_position;
-    }
-
-    constexpr Position operator- (const Position& rhs) const {
-        auto new_position = Position(*this);
-        new_position._x -= rhs._x;
-        new_position._y -= rhs._y;
-        return new_position;
-    }
-
-    constexpr coordinate_t get_x() const {
-        return _x;
-    }
-
-    constexpr coordinate_t get_y() const {
-        return _y;
-    }
-
-    constexpr bool operator== (const Position &rhs) const {
-        return _x == rhs._x && _y == rhs._y;
-    }
-
+    friend std::ostream &operator<<(std::ostream &os, const Position &pos);
 
 private:
     coordinate_t _x, _y;
@@ -73,5 +48,32 @@ constinit Position move_vector[DIRECTION_NO] = {
         Position( 0, -1),
         Position(-1,  0)
 };
+
+std::ostream &operator<<(std::ostream &os, const Position &pos) {
+    os << "(" << pos._x << ", " << pos._y << ")";
+    return os;
+}
+
+constexpr Position Position::operator+ (const Position& rhs) const {
+    auto new_position = Position(*this);
+    new_position._x += rhs._x;
+    new_position._y += rhs._y;
+    return new_position;
+}
+
+constexpr Position Position::operator- (const Position& rhs) const {
+    auto new_position = Position(*this);
+    new_position._x -= rhs._x;
+    new_position._y -= rhs._y;
+    return new_position;
+}
+
+constexpr coordinate_t Position::get_x() const {
+    return _x;
+}
+
+constexpr coordinate_t Position::get_y() const {
+    return _y;
+}
 
 #endif //ROVER_POSITIONING_H
