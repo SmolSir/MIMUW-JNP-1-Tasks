@@ -1,5 +1,3 @@
-//#pragma clang diagnostic push
-//#pragma ide diagnostic ignored "cert-err58-cpp"
 #ifndef ROVER_ROVER_H
 #define ROVER_ROVER_H
 
@@ -26,8 +24,6 @@ class Command;
 class Rover {
 public:
     Rover() = delete;
-    Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands,
-          std::vector<std::shared_ptr<Sensor>> &sensors);
 
     void execute(const std::string &s);
 
@@ -42,6 +38,8 @@ public:
     int get_direction() const;
     void set_direction(int new_direction);
 
+    friend class RoverBuilder;
+
 private:
     std::unordered_map<char, std::shared_ptr<Command>> _commands;
     std::vector<std::shared_ptr<Sensor>> _sensors;
@@ -49,6 +47,9 @@ private:
     int _direction;
     bool _land = false;
     bool _stop = false;
+
+    Rover(std::unordered_map<char, std::shared_ptr<Command>> &commands,
+          std::vector<std::shared_ptr<Sensor>> &sensors);
 };
 
 
@@ -61,9 +62,8 @@ public:
         return *this;
     }
 
-    RoverBuilder& add_sensor(std::unique_ptr<Sensor> &&sensor) {
-        std::shared_ptr<Sensor> temp = std::move(sensor);
-        _sensors.push_back(temp);
+    RoverBuilder& add_sensor(std::unique_ptr<Sensor> sensor) {
+        _sensors.emplace_back(std::move(sensor));
         return *this;
     }
 
@@ -238,5 +238,3 @@ void Rover::set_direction(int new_direction) {
 }
 
 #endif //ROVER_ROVER_H
-
-//#pragma clang diagnostic pop
